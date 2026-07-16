@@ -1,7 +1,10 @@
 package com.trofinder.service.interfaces;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.trofinder.dto.request.RoomCreateRequest;
 import com.trofinder.dto.request.RoomSearchRequest;
@@ -40,5 +43,11 @@ public interface RoomService {
      * Xóa mềm phòng
      */
     void delete(Long id);
+    /**
+     * Upload ảnh phòng
+     */
+    List<String> uploadImages(
+            Long roomId,
+            List<MultipartFile> files);
 
 }

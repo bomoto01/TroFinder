@@ -2,12 +2,14 @@ package com.trofinder.service.impl;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.trofinder.dto.request.RoomCreateRequest;
 import com.trofinder.dto.response.RoomResponse;
@@ -20,12 +22,15 @@ import com.trofinder.enums.RoomStatus;
 import com.trofinder.exception.ResourceNotFoundException;
 import com.trofinder.mapper.RoomMapper;
 import com.trofinder.repository.AmenityRepository;
+import com.trofinder.repository.RoomImageRepository;
 import com.trofinder.repository.RoomRepository;
 import com.trofinder.repository.WardRepository;
 import com.trofinder.service.interfaces.CurrentUserService;
 import com.trofinder.service.interfaces.RoomService;
 import com.trofinder.dto.request.RoomSearchRequest;
 import com.trofinder.specification.RoomSpecification;
+import com.trofinder.storage.FileStorageService;
+import com.trofinder.entity.RoomImage;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,6 +39,10 @@ import lombok.RequiredArgsConstructor;
 public class RoomServiceImpl implements RoomService {
 
     private final RoomRepository roomRepository;
+
+    private final RoomImageRepository roomImageRepository;
+
+    private final FileStorageService fileStorageService;
 
     private final RoomMapper roomMapper;
 
@@ -153,7 +162,42 @@ public class RoomServiceImpl implements RoomService {
     // ==========================================================
     // PRIVATE METHODS
     // ==========================================================
+    @Override
+    @Transactional
+    public List<String> uploadImages(
+            Long roomId,
+            List<MultipartFile> files) {
 
+        Room room = getRoom(roomId);
+
+        validateOwner(room);
+
+        List<String> imageUrls =
+                fileStorageService.storeRoomImages(roomId, files);
+
+        boolean hasThumbnail =
+                roomImageRepository.findByRoomIdAndThumbnailTrue(roomId) != null;
+
+        int displayOrder = roomImageRepository
+                .findByRoomIdOrderByDisplayOrder(roomId)
+                .size() + 1;
+
+        for (String imageUrl : imageUrls) {
+
+            RoomImage roomImage = RoomImage.builder()
+                    .room(room)
+                    .imageUrl(imageUrl)
+                    .displayOrder(displayOrder++)
+                    .thumbnail(!hasThumbnail)
+                    .build();
+
+            roomImageRepository.save(roomImage);
+
+            hasThumbnail = true;
+        }
+
+        return imageUrls;
+    }
     /**
      * User đang đăng nhập
      */

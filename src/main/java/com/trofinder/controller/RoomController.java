@@ -1,4 +1,5 @@
 package com.trofinder.controller;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,7 +15,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.trofinder.dto.request.RoomCreateRequest;
 import com.trofinder.dto.request.RoomSearchRequest;
@@ -131,4 +134,21 @@ public class RoomController {
                         .message("Xóa phòng thành công")
                         .build());
     }
+        /**
+         * Upload ảnh cho phòng
+         */
+        @PostMapping("/{roomId}/images")
+        public ResponseEntity<ApiResponse<List<String>>> uploadImages(
+                @PathVariable Long roomId,
+                @RequestParam("files") List<MultipartFile> files) {
+
+        List<String> imageUrls = roomService.uploadImages(roomId, files);
+
+        return ResponseEntity.ok(
+                ApiResponse.<List<String>>builder()
+                        .success(true)
+                        .message("Upload ảnh thành công")
+                        .data(imageUrls)
+                        .build());
+        }
 }
