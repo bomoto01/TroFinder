@@ -50,4 +50,9 @@ public interface RoomService {
             Long roomId,
             List<MultipartFile> files);
 
+        /**
+         * Xóa ảnh
+         */
+    void deleteImage(Long imageId);
+
 }

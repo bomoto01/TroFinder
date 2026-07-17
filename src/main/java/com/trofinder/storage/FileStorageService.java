@@ -17,6 +17,6 @@ public interface FileStorageService {
     /**
      * Xóa một file.
      */
-    void delete(String filePath);
+    void delete(String fileUrlString);
 
 }

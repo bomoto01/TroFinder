@@ -74,13 +74,18 @@ public class LocalFileStorageService implements FileStorageService {
     }
 
     @Override
-    public void delete(String filePath) {
+    public void delete(String fileUrl) {
 
         try {
 
-            Path path = Paths.get(filePath.replaceFirst("^/", ""));
+            String relativePath =
+                    fileUrl.replaceFirst("^/uploads/", "");
 
-            Files.deleteIfExists(path);
+            Path filePath = Paths.get(
+                    uploadConfig.getUploadDir(),
+                    relativePath);
+
+            Files.deleteIfExists(filePath);
 
         } catch (IOException e) {
 

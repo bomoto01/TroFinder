@@ -348,5 +348,19 @@ public class RoomServiceImpl implements RoomService {
 
         return roomMapper.toResponse(saved);
     }
+    @Override
+    @Transactional
+    public void deleteImage(Long imageId) {
+
+        RoomImage image = roomImageRepository.findById(imageId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Không tìm thấy ảnh."));
+
+        validateOwner(image.getRoom());
+
+        fileStorageService.delete(image.getImageUrl());
+
+        roomImageRepository.delete(image);
+    }
 
 }

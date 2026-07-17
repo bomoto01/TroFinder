@@ -151,4 +151,19 @@ public class RoomController {
                         .data(imageUrls)
                         .build());
         }
+        /**
+         * Xóa ảnh
+         */
+        @DeleteMapping("/images/{imageId}")
+        public ResponseEntity<ApiResponse<Void>> deleteImage(
+                @PathVariable Long imageId) {
+
+        roomService.deleteImage(imageId);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .message("Xóa ảnh thành công")
+                        .build());
+        }
 }
