@@ -54,5 +54,9 @@ public interface RoomService {
          * Xóa ảnh
          */
     void deleteImage(Long imageId);
+    /**
+     * Đặt ảnh đại diện
+     */
+    void setThumbnail(Long imageId);
 
 }

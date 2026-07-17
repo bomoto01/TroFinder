@@ -362,5 +362,31 @@ public class RoomServiceImpl implements RoomService {
 
         roomImageRepository.delete(image);
     }
+    @Override
+    @Transactional
+    public void setThumbnail(Long imageId) {
+
+        RoomImage selectedImage = roomImageRepository.findById(imageId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Không tìm thấy ảnh."));
+
+        // Chỉ chủ phòng mới được đổi thumbnail
+        validateOwner(selectedImage.getRoom());
+
+        // Lấy toàn bộ ảnh của phòng
+        List<RoomImage> images =
+                roomImageRepository.findByRoomId(
+                        selectedImage.getRoom().getId());
+
+        // Bỏ thumbnail của tất cả ảnh
+        for (RoomImage image : images) {
+            image.setThumbnail(false);
+        }
+
+        // Đặt thumbnail cho ảnh được chọn
+        selectedImage.setThumbnail(true);
+
+        roomImageRepository.saveAll(images);
+    }
 
 }

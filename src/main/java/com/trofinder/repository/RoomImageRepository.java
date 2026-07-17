@@ -19,5 +19,9 @@ public interface RoomImageRepository extends JpaRepository<RoomImage, Long>{
      * Lấy ảnh thumbnail
      */
     RoomImage findByRoomIdAndThumbnailTrue(Long roomId);
+    /*
+    * Danh sách ảnh của một phòng
+    */
+    List<RoomImage> findByRoomId(Long roomId);
 
 }

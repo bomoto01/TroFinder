@@ -166,4 +166,19 @@ public class RoomController {
                         .message("Xóa ảnh thành công")
                         .build());
         }
+        /**
+         * Đặt ảnh đại diện
+         */
+        @PutMapping("/images/{imageId}/thumbnail")
+        public ResponseEntity<ApiResponse<Void>> setThumbnail(
+                @PathVariable Long imageId) {
+
+        roomService.setThumbnail(imageId);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .success(true)
+                        .message("Đặt ảnh đại diện thành công")
+                        .build());
+        }
 }
