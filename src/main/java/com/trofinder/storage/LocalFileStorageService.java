@@ -5,7 +5,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,55 +22,70 @@ public class LocalFileStorageService implements FileStorageService {
 
     private final UploadConfig uploadConfig;
 
+    // ==========================================================
+    // IMAGE
+    // ==========================================================
+
     @Override
     public List<String> storeRoomImages(
             Long roomId,
             List<MultipartFile> files) {
 
-        if (files == null || files.isEmpty()) {
-            return List.of();
-        }
+        return storeFiles(
+                roomId,
+                files,
+                "rooms",
+                FileType.IMAGE);
+    }
 
-        List<String> imageUrls = new ArrayList<>();
+    // ==========================================================
+    // VIDEO
+    // ==========================================================
+
+    @Override
+    public String storeRoomVideo(
+            Long roomId,
+            MultipartFile file) {
+
+        validate(file, FileType.VIDEO);
 
         try {
 
             Path roomDirectory = Paths.get(
                     uploadConfig.getUploadDir(),
-                    "rooms",
+                    "videos",
                     roomId.toString());
 
             Files.createDirectories(roomDirectory);
 
-            for (MultipartFile file : files) {
+            String fileName = generateFileName(file);
 
-                validateImage(file);
+            Path destination =
+                    roomDirectory.resolve(fileName);
 
-                String fileName = generateFileName(file);
+            Files.copy(
+                    file.getInputStream(),
+                    destination,
+                    StandardCopyOption.REPLACE_EXISTING);
 
-                Path destination = roomDirectory.resolve(fileName);
-
-                Files.copy(
-                        file.getInputStream(),
-                        destination,
-                        StandardCopyOption.REPLACE_EXISTING);
-
-                imageUrls.add(
-                        "/uploads/rooms/"
-                                + roomId
-                                + "/"
-                                + fileName);
-            }
-
-            return imageUrls;
+            return "/uploads/videos/"
+                    + roomId
+                    + "/"
+                    + fileName;
 
         } catch (IOException e) {
 
-            throw new RuntimeException("Không thể upload ảnh.", e);
+            throw new RuntimeException(
+                    "Không thể upload video.",
+                    e);
 
         }
 
     }
+
+    // ==========================================================
+    // DELETE
+    // ==========================================================
 
     @Override
     public void delete(String fileUrl) {
@@ -89,16 +103,109 @@ public class LocalFileStorageService implements FileStorageService {
 
         } catch (IOException e) {
 
-            throw new RuntimeException("Không thể xóa file.", e);
+            throw new RuntimeException(
+                    "Không thể xóa file.",
+                    e);
+
+        }
+
+    }
+
+    @Override
+    public void deleteVideo(String fileUrl) {
+        delete(fileUrl);
+    }
+
+    // ==========================================================
+    // PRIVATE
+    // ==========================================================
+
+    /**
+     * Upload nhiều ảnh
+     */
+    private List<String> storeFiles(
+            Long roomId,
+            List<MultipartFile> files,
+            String folder,
+            FileType fileType) {
+
+        if (files == null || files.isEmpty()) {
+            return List.of();
+        }
+
+        try {
+
+            Path roomDirectory = Paths.get(
+                    uploadConfig.getUploadDir(),
+                    folder,
+                    roomId.toString());
+
+            Files.createDirectories(roomDirectory);
+
+            return files.stream()
+                    .map(file -> saveFile(
+                            roomDirectory,
+                            roomId,
+                            folder,
+                            file,
+                            fileType))
+                    .toList();
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Không thể upload file.",
+                    e);
 
         }
 
     }
 
     /**
-     * Validate ảnh
+     * Lưu một file
      */
-    private void validateImage(MultipartFile file) {
+    private String saveFile(
+            Path roomDirectory,
+            Long roomId,
+            String folder,
+            MultipartFile file,
+            FileType fileType) {
+
+        validate(file, fileType);
+
+        String fileName = generateFileName(file);
+
+        Path destination =
+                roomDirectory.resolve(fileName);
+
+        try {
+
+            Files.copy(
+                    file.getInputStream(),
+                    destination,
+                    StandardCopyOption.REPLACE_EXISTING);
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(e);
+
+        }
+
+        return "/uploads/"
+                + folder
+                + "/"
+                + roomId
+                + "/"
+                + fileName;
+
+    }
+
+    /**
+     * Validate file
+     */
+    private void validate(
+            MultipartFile file,
+            FileType fileType) {
 
         if (file.isEmpty()) {
             throw new BadRequestException("File rỗng.");
@@ -106,10 +213,38 @@ public class LocalFileStorageService implements FileStorageService {
 
         String contentType = file.getContentType();
 
-        if (contentType == null
-                || !contentType.startsWith("image/")) {
+        if (contentType == null) {
+            throw new BadRequestException(
+                    "Không xác định được loại file.");
+        }
 
-            throw new BadRequestException("Chỉ cho phép upload ảnh.");
+        switch (fileType) {
+
+            case IMAGE -> {
+
+                if (!contentType.startsWith("image/")) {
+
+                    throw new BadRequestException(
+                            "Chỉ cho phép upload ảnh.");
+
+                }
+
+            }
+
+            case VIDEO -> {
+
+                if (!List.of(
+                        "video/mp4",
+                        "video/webm",
+                        "video/quicktime")
+                        .contains(contentType)) {
+
+                    throw new BadRequestException(
+                            "Chỉ hỗ trợ MP4, WEBM hoặc MOV.");
+
+                }
+
+            }
 
         }
 
@@ -118,7 +253,8 @@ public class LocalFileStorageService implements FileStorageService {
     /**
      * Sinh tên file
      */
-    private String generateFileName(MultipartFile file) {
+    private String generateFileName(
+            MultipartFile file) {
 
         String original = file.getOriginalFilename();
 
@@ -126,13 +262,22 @@ public class LocalFileStorageService implements FileStorageService {
 
         if (original != null && original.contains(".")) {
 
-            extension = original.substring(
-                    original.lastIndexOf("."));
+            extension =
+                    original.substring(
+                            original.lastIndexOf("."));
 
         }
 
         return UUID.randomUUID() + extension;
 
+    }
+
+    /**
+     * Loại file
+     */
+    private enum FileType {
+        IMAGE,
+        VIDEO
     }
 
 }

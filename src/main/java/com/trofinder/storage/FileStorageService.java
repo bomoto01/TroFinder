@@ -13,10 +13,14 @@ public interface FileStorageService {
             Long roomId,
             List<MultipartFile> files
     );
+    String storeRoomVideo(
+        Long roomId,
+        MultipartFile file);
 
     /**
      * Xóa một file.
      */
-    void delete(String fileUrlString);
+    void delete(String fileUrl);
 
+    void deleteVideo(String fileUrl);
 }

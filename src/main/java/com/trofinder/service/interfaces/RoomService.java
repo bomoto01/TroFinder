@@ -59,4 +59,12 @@ public interface RoomService {
      */
     void setThumbnail(Long imageId);
 
+    String uploadVideo(
+        Long roomId,
+        MultipartFile file);
+
+    String getVideo(Long roomId);
+
+    void deleteVideo(Long roomId);
+
 }

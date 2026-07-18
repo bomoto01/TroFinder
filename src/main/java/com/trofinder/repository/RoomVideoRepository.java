@@ -1,6 +1,6 @@
 package com.trofinder.repository;
 
-import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -11,8 +11,8 @@ import com.trofinder.entity.RoomVideo;
 public interface RoomVideoRepository extends JpaRepository<RoomVideo, Long> {
 
     /*
-     * Lấy tất cả video của phòng
+     * Lấy video của một phòng
      */
-    List<RoomVideo> findByRoomId(Long roomId);
+    Optional<RoomVideo> findByRoomId(Long roomId);
 
 }

@@ -15,6 +15,7 @@ import com.trofinder.dto.request.RoomCreateRequest;
 import com.trofinder.dto.response.RoomResponse;
 import com.trofinder.entity.Amenity;
 import com.trofinder.entity.Room;
+import com.trofinder.entity.RoomVideo;
 import com.trofinder.entity.User;
 import com.trofinder.entity.Ward;
 import com.trofinder.enums.ApprovalStatus;
@@ -24,6 +25,7 @@ import com.trofinder.mapper.RoomMapper;
 import com.trofinder.repository.AmenityRepository;
 import com.trofinder.repository.RoomImageRepository;
 import com.trofinder.repository.RoomRepository;
+import com.trofinder.repository.RoomVideoRepository;
 import com.trofinder.repository.WardRepository;
 import com.trofinder.service.interfaces.CurrentUserService;
 import com.trofinder.service.interfaces.RoomService;
@@ -51,6 +53,7 @@ public class RoomServiceImpl implements RoomService {
     private final AmenityRepository amenityRepository;
 
     private final CurrentUserService currentUserService;
+    private final RoomVideoRepository roomVideoRepository;
 
     // ==========================================================
     // CREATE
@@ -388,5 +391,69 @@ public class RoomServiceImpl implements RoomService {
 
         roomImageRepository.saveAll(images);
     }
+   @Override
+@Transactional
+public String uploadVideo(
+        Long roomId,
+        MultipartFile file) {
 
+    Room room = getRoom(roomId);
+
+    validateOwner(room);
+
+    roomVideoRepository.findByRoomId(roomId)
+            .ifPresent(video -> {
+
+                fileStorageService.deleteVideo(
+                        video.getVideoUrl());
+
+                roomVideoRepository.delete(video);
+
+            });
+
+    String videoUrl =
+            fileStorageService.storeRoomVideo(
+                    roomId,
+                    file);
+
+    RoomVideo roomVideo = RoomVideo.builder()
+            .room(room)
+            .videoUrl(videoUrl)
+            .build();
+
+    roomVideoRepository.save(roomVideo);
+
+    return videoUrl;
+
+}
+    @Override
+    public String getVideo(Long roomId) {
+
+        getRoom(roomId);
+
+        return roomVideoRepository
+                .findByRoomId(roomId)
+                .map(RoomVideo::getVideoUrl)
+                .orElse(null);
+
+    }
+   @Override
+    @Transactional
+    public void deleteVideo(Long roomId) {
+
+        Room room = getRoom(roomId);
+
+        validateOwner(room);
+
+        RoomVideo video = roomVideoRepository
+                .findByRoomId(roomId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Phòng chưa có video."));
+
+        fileStorageService.deleteVideo(video.getVideoUrl());
+
+        roomVideoRepository.delete(video);
+
+    }
 }
