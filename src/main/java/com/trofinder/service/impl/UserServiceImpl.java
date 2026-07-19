@@ -1,8 +1,11 @@
 package com.trofinder.service.impl;
 
+import java.time.LocalDateTime;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.trofinder.dto.response.UserResponse;
 import com.trofinder.entity.User;
@@ -21,17 +24,28 @@ public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
 
+    /**
+     * Lấy thông tin người dùng đang đăng nhập
+     */
     @Override
+    @Transactional
     public UserResponse getCurrentUser() {
 
         Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication();
 
         String username = authentication.getName();
 
-        User user = userRepository.findByUsername(username)
+        User user = userRepository
+                .findByUsername(username)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException("Không tìm thấy người dùng"));
+                        new ResourceNotFoundException(
+                                "Không tìm thấy người dùng."));
+
+        // Cập nhật thời gian hoạt động gần nhất
+        user.setLastActiveAt(LocalDateTime.now());
 
         return userMapper.toResponse(user);
     }

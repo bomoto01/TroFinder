@@ -13,6 +13,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserResponse {
 
+    /*
+     * ==========================
+     * Thông tin cơ bản
+     * ==========================
+     */
     private Long id;
 
     private String username;
@@ -23,14 +28,39 @@ public class UserResponse {
 
     private String phone;
 
+    private String zaloPhone;
+
     private String avatar;
 
+    /*
+     * ==========================
+     * Vai trò
+     * ==========================
+     */
     private String role;
 
+    /*
+     * ==========================
+     * Trạng thái
+     * ==========================
+     */
     private UserStatus status;
 
     private boolean emailVerified;
 
     private boolean phoneVerified;
+
+    /*
+     * ==========================
+     * Uy tín
+     * ==========================
+     */
+    private Integer reputationScore;
+
+    private Double averageRating;
+
+    private Integer totalReviews;
+
+    private Double responseRate;
 
 }

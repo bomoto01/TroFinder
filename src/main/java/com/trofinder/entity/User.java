@@ -1,8 +1,5 @@
-package com.trofinder.entity; // Package chứa Entity User
+package com.trofinder.entity;
 
-// ======================
-// Import Enum
-// ======================
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -30,27 +27,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/*
- * @Entity
- * Đánh dấu đây là Entity.
- * Hibernate sẽ ánh xạ class này tới bảng users.
- */
 @Entity
-
-/*
- * Ánh xạ tới bảng users.
- */
 @Table(name = "users")
 
-/*
- * Lombok.
- */
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-
 public class User {
 
     /*
@@ -60,7 +44,6 @@ public class User {
      */
 
     @Id
-
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -73,6 +56,29 @@ public class User {
     @Column(nullable = false, unique = true, length = 50)
     private String username;
 
+    @Column(nullable = false, length = 255)
+    private String password;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private Provider provider = Provider.LOCAL;
+
+    /*
+     * ==========================
+     * ROLE
+     * ==========================
+     */
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "role_id", nullable = false)
+    private Role role;
+
+    /*
+     * ==========================
+     * THÔNG TIN CÁ NHÂN
+     * ==========================
+     */
+
     @Column(name = "full_name", nullable = false, length = 100)
     private String fullName;
 
@@ -82,84 +88,81 @@ public class User {
     @Column(unique = true, length = 20)
     private String phone;
 
-    /*
-     * BCrypt Password
-     */
-    @Column(nullable = false, length = 255)
-    private String password;
-
-    /*
-     * Avatar.
-     */
     @Column(length = 255)
     private String avatar;
 
-    /*
-     * ==========================
-     * THÔNG TIN CÁ NHÂN
-     * ==========================
-     */
-
     @Enumerated(EnumType.STRING)
-    private Gender gender;
+    @Builder.Default
+    private Gender gender = Gender.OTHER;
 
     @Column(name = "date_of_birth")
     private LocalDate dateOfBirth;
 
     /*
-     * Đăng nhập bằng:
-     * LOCAL
-     * GOOGLE
-     * FACEBOOK
+     * ==========================
+     * XÁC THỰC
+     * ==========================
      */
-    @Enumerated(EnumType.STRING)
-    private Provider provider;
 
-    /*
-     * Đã xác minh email chưa.
-     */
-    @Column(name = "email_verified")
     @Builder.Default
+    @Column(name = "email_verified")
     private Boolean emailVerified = false;
 
-    /*
-     * Đã xác minh số điện thoại chưa.
-     */
-    @Column(name = "phone_verified")
     @Builder.Default
+    @Column(name = "phone_verified")
     private Boolean phoneVerified = false;
 
+    @Column(name = "zalo_phone", length = 20)
+    private String zaloPhone;
+
     /*
-     * Trạng thái tài khoản.
+     * ==========================
+     * TRẠNG THÁI TÀI KHOẢN
+     * ==========================
      */
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private UserStatus status = UserStatus.PENDING;
-    
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean deleted = false;
+
     /*
-    * Điểm uy tín.
-    * Mặc định 100.
-    */
+     * ==========================
+     * ĐIỂM UY TÍN
+     * ==========================
+     */
+
     @Builder.Default
     @Column(name = "reputation_score")
     private Integer reputationScore = 100;
-    /*
-    * Số lần đặt lịch nhưng không đến.
-    */
+
+    @Builder.Default
+    @Column(name = "average_rating")
+    private Double averageRating = 0.0;
+
+    @Builder.Default
+    @Column(name = "total_reviews")
+    private Integer totalReviews = 0;
+
+    @Builder.Default
+    @Column(name = "response_rate")
+    private Double responseRate = 100.0;
+
     @Builder.Default
     @Column(name = "no_show_count")
-    private Integer noShowCount = 0;
+    private Short noShowCount = 0;
+
     /*
      * ==========================
-     * ROLE
+     * HOẠT ĐỘNG
      * ==========================
-     *
-     * Nhiều User thuộc một Role.
      */
-    @ManyToOne(fetch = FetchType.LAZY)
 
-    @JoinColumn(name = "role_id", nullable = false)
-    private Role role;
+    @Column(name = "last_active_at")
+    private LocalDateTime lastActiveAt;
 
     /*
      * ==========================
@@ -167,24 +170,11 @@ public class User {
      * ==========================
      */
 
-    /*
-     * Hibernate tự tạo thời gian khi INSERT.
-     */
     @CreationTimestamp
-    /*
-    * Hoạt động gần nhất.
-    */
-    @Column(name = "last_active_at")
-    private LocalDateTime lastActiveAt;
-
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    /*
-     * Hibernate tự cập nhật khi UPDATE.
-     */
     @UpdateTimestamp
-
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 

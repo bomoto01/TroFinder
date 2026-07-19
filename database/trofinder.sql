@@ -22,58 +22,122 @@ CREATE TABLE roles (
 
 CREATE TABLE users (
 
+    -- ==========================
+    -- Khóa chính
+    -- ==========================
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
 
-    username VARCHAR(50) NOT NULL UNIQUE COMMENT 'Tên đăng nhập',
+    -- ==========================
+    -- Thông tin tài khoản
+    -- ==========================
+    username VARCHAR(50) NOT NULL UNIQUE
+        COMMENT 'Tên đăng nhập',
 
-    full_name VARCHAR(100) NOT NULL COMMENT 'Họ và tên',
-
-    email VARCHAR(100) UNIQUE COMMENT 'Email',
-
-    phone VARCHAR(20) UNIQUE COMMENT 'Số điện thoại',
-
-    password VARCHAR(255) NOT NULL COMMENT 'Mật khẩu đã mã hóa',
-
-    avatar VARCHAR(255) DEFAULT NULL COMMENT 'Ảnh đại diện',
-
-    gender ENUM('MALE','FEMALE','OTHER')
-        DEFAULT 'OTHER',
-
-    date_of_birth DATE,
+    password VARCHAR(255) NOT NULL
+        COMMENT 'Mật khẩu đã mã hóa',
 
     provider ENUM('LOCAL','GOOGLE','FACEBOOK')
-        DEFAULT 'LOCAL',
+        DEFAULT 'LOCAL'
+        COMMENT 'Nguồn đăng nhập',
 
-    email_verified BOOLEAN DEFAULT FALSE,
+    role_id BIGINT NOT NULL
+        COMMENT 'Vai trò',
 
-    phone_verified BOOLEAN DEFAULT FALSE,
+    -- ==========================
+    -- Thông tin cá nhân
+    -- ==========================
+    full_name VARCHAR(100) NOT NULL
+        COMMENT 'Họ và tên',
 
+    email VARCHAR(100) UNIQUE
+        COMMENT 'Email',
+
+    phone VARCHAR(20) UNIQUE
+        COMMENT 'Số điện thoại',
+
+    avatar VARCHAR(255) DEFAULT NULL
+        COMMENT 'Ảnh đại diện',
+
+    gender ENUM('MALE','FEMALE','OTHER')
+        DEFAULT 'OTHER'
+        COMMENT 'Giới tính',
+
+    date_of_birth DATE
+        COMMENT 'Ngày sinh',
+
+    -- ==========================
+    -- Xác thực
+    -- ==========================
+    email_verified BOOLEAN DEFAULT FALSE
+        COMMENT 'Đã xác thực email',
+
+    phone_verified BOOLEAN DEFAULT FALSE
+        COMMENT 'Đã xác thực số điện thoại',
+
+    zalo_phone VARCHAR(20)
+        COMMENT 'Số điện thoại Zalo',
+
+    -- ==========================
+    -- Trạng thái tài khoản
+    -- ==========================
     status ENUM(
         'PENDING',
         'ACTIVE',
+        'INACTIVE',
         'BLOCKED'
-    )
-    DEFAULT 'PENDING',
+    ) DEFAULT 'PENDING'
+        COMMENT 'Trạng thái tài khoản',
 
-    -- ⭐ Thêm
-    reputation_score INT DEFAULT 100
-        COMMENT 'Điểm uy tín',
+    deleted BOOLEAN DEFAULT FALSE
+        COMMENT 'Xóa mềm',
 
-    no_show_count INT DEFAULT 0
+    -- ==========================
+    -- Điểm uy tín
+    -- ==========================
+    reputation_score SMALLINT UNSIGNED
+        DEFAULT 100
+        COMMENT 'Điểm uy tín (0-100)',
+
+    average_rating DECIMAL(2,1)
+        DEFAULT 0.0
+        COMMENT 'Điểm đánh giá trung bình',
+
+    total_reviews INT UNSIGNED
+        DEFAULT 0
+        COMMENT 'Tổng số lượt đánh giá',
+
+    response_rate DECIMAL(5,2)
+        DEFAULT 100.00
+        COMMENT 'Tỷ lệ phản hồi (%)',
+
+    no_show_count TINYINT UNSIGNED
+        DEFAULT 0
         COMMENT 'Số lần đặt lịch nhưng không đến',
-	last_active_at TIMESTAMP NULL COMMENT 'Hoạt động gần nhất',
-    role_id BIGINT NOT NULL COMMENT 'Vai trò',
 
+    -- ==========================
+    -- Hoạt động
+    -- ==========================
+    last_active_at TIMESTAMP NULL
+        COMMENT 'Hoạt động gần nhất',
+
+    -- ==========================
+    -- Thời gian
+    -- ==========================
+    created_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TIMESTAMP
+        DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    -- ==========================
+    -- Foreign Key
+    -- ==========================
     CONSTRAINT fk_user_role
-        FOREIGN KEY(role_id)
+        FOREIGN KEY (role_id)
         REFERENCES roles(id)
+        ON UPDATE CASCADE
         ON DELETE RESTRICT
-        ON UPDATE CASCADE,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP
 
 );
 
@@ -756,3 +820,13 @@ CREATE INDEX idx_room_view_room_time ON room_views(room_id, viewed_at);
      nếu là khóa ngoại (Foreign Key) thì MySQL thường đã tự đánh index.
    - Đoạn script trên tập trung vào các trường hợp "WHERE" kết hợp "ORDER BY".
 ==============================================================*/
+UPDATE rooms
+SET approval_status = 'APPROVED'
+WHERE id = 3;
+SELECT
+    id,
+    room_id,
+    image_url,
+    is_thumbnail
+FROM room_images
+WHERE room_id = 4;
