@@ -24,16 +24,16 @@ import lombok.NoArgsConstructor;
 public class RoomResponse {
 
     /*
-     * ==========================
-     * Thông tin cơ bản
-     * ==========================
+     * ==========================================================
+     * THÔNG TIN CƠ BẢN
+     * ==========================================================
      */
     private Long id;
 
     /*
-     * ==========================
-     * Chủ phòng
-     * ==========================
+     * ==========================================================
+     * CHỦ BÀI ĐĂNG
+     * ==========================================================
      */
     private Long ownerId;
 
@@ -41,36 +41,60 @@ public class RoomResponse {
 
     private String ownerPhone;
 
+    private String ownerAvatar;
+
     /*
-     * ==========================
-     * Thông tin phòng
-     * ==========================
+     * ==========================================================
+     * THÔNG TIN LIÊN HỆ
+     * ==========================================================
+     */
+    private String contactName;
+
+    private String contactPhone;
+
+    private String zaloPhone;
+
+    private String zaloQrUrl;
+
+    /*
+     * ==========================================================
+     * THÔNG TIN BÀI ĐĂNG
+     * ==========================================================
      */
     private String title;
 
     private String description;
 
-    private BigDecimal price;
-
-    private BigDecimal area;
-
     private RoomType roomType;
 
     /*
-     * ==========================
-     * Chi phí
-     * ==========================
+     * ==========================================================
+     * GIÁ
+     * ==========================================================
      */
+    private BigDecimal price;
+
     private BigDecimal deposit;
 
     private BigDecimal electricPrice;
 
     private BigDecimal waterPrice;
 
+    private BigDecimal area;
+
     /*
-     * ==========================
-     * Địa chỉ
-     * ==========================
+     * ==========================================================
+     * SỐ LƯỢNG PHÒNG
+     * ==========================================================
+     */
+    private Integer quantity;
+
+    private Integer availableQuantity;
+
+    /*
+     * ==========================================================
+     * ĐỊA CHỈ
+     * ==========================================================
      */
     private String address;
 
@@ -87,61 +111,96 @@ public class RoomResponse {
     private String wardName;
 
     /*
-     * ==========================
-     * Tọa độ
-     * ==========================
+     * ==========================================================
+     * TỌA ĐỘ
+     * ==========================================================
      */
     private BigDecimal latitude;
 
     private BigDecimal longitude;
 
     /*
-     * ==========================
-     * Trạng thái
-     * ==========================
+     * ==========================================================
+     * TIỆN ÍCH
+     * ==========================================================
+     */
+    private Set<String> amenities;
+
+    private String additionalAmenities;
+
+    /*
+     * ==========================================================
+     * CÀI ĐẶT LIÊN HỆ
+     * ==========================================================
+     */
+    private Boolean allowBooking;
+
+    private Boolean allowCall;
+
+    private Boolean allowChat;
+
+    /*
+     * ==========================================================
+     * THỐNG KÊ
+     * ==========================================================
+     */
+    private Long viewCount;
+
+    private Integer favoriteCount;
+
+    private Integer contactCount;
+
+    private Integer appointmentCount;
+
+    private Integer shareCount;
+
+    /*
+     * ==========================================================
+     * HIỂN THỊ
+     * ==========================================================
+     */
+    private Boolean featured;
+
+    private Boolean verified;
+
+    private Integer priorityScore;
+
+    /*
+     * ==========================================================
+     * TRẠNG THÁI
+     * ==========================================================
      */
     private RoomStatus status;
 
     private ApprovalStatus approvalStatus;
 
     /*
-     * ==========================
-     * Thống kê
-     * ==========================
-     */
-    private Long viewCount;
-
-    /*
-     * ==========================
-     * Danh sách ảnh
-     * ==========================
+     * ==========================================================
+     * HÌNH ẢNH
+     * ==========================================================
      */
     private List<String> imageUrls;
 
     /*
-     * ==========================
-     * Danh sách video
-     * ==========================
+     * ==========================================================
+     * VIDEO
+     * ==========================================================
      */
     private List<String> videoUrls;
 
     /*
-     * ==========================
-     * Tiện ích
-     * ==========================
+     * ==========================================================
+     * THỜI GIAN
+     * ==========================================================
      */
-    private Set<String> amenities;
+    private LocalDateTime publishedAt;
 
-    /**
-     * Tiện ích khác do chủ trọ nhập.
-     */
-    private String additionalAmenities;
+    private LocalDateTime boostedAt;
 
-    /*
-     * ==========================
-     * Thời gian
-     * ==========================
-     */
+    private LocalDateTime lastContactAt;
+
+    private LocalDateTime expiredAt;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

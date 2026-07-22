@@ -21,9 +21,12 @@ import com.trofinder.entity.RoomVideo;
 )
 public interface RoomMapper {
 
-    /**
-     * RoomCreateRequest -> Room
+    /*
+     * ==========================================================
+     * Request -> Entity
+     * ==========================================================
      */
+
     @Mapping(target = "id", ignore = true)
 
     @Mapping(target = "owner", ignore = true)
@@ -35,7 +38,24 @@ public interface RoomMapper {
 
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "approvalStatus", ignore = true)
+
     @Mapping(target = "viewCount", ignore = true)
+    @Mapping(target = "favoriteCount", ignore = true)
+    @Mapping(target = "contactCount", ignore = true)
+    @Mapping(target = "appointmentCount", ignore = true)
+    @Mapping(target = "shareCount", ignore = true)
+
+    @Mapping(target = "featured", ignore = true)
+    @Mapping(target = "verified", ignore = true)
+    @Mapping(target = "priorityScore", ignore = true)
+
+    @Mapping(target = "availableQuantity", ignore = true)
+
+    @Mapping(target = "publishedAt", ignore = true)
+    @Mapping(target = "boostedAt", ignore = true)
+    @Mapping(target = "lastContactAt", ignore = true)
+    @Mapping(target = "expiredAt", ignore = true)
+
     @Mapping(target = "deleted", ignore = true)
 
     @Mapping(target = "createdAt", ignore = true)
@@ -43,32 +63,46 @@ public interface RoomMapper {
 
     Room toEntity(RoomCreateRequest request);
 
-    /**
-     * Room -> RoomResponse
+    /*
+     * ==========================================================
+     * Entity -> Response
+     * ==========================================================
      */
+
     @Mapping(target = "ownerId", source = "owner.id")
     @Mapping(target = "ownerName", source = "owner.fullName")
     @Mapping(target = "ownerPhone", source = "owner.phone")
-
-    @Mapping(target = "wardId", source = "ward.id")
-    @Mapping(target = "wardName", source = "ward.name")
-
-    @Mapping(target = "districtId", source = "ward.district.id")
-    @Mapping(target = "districtName", source = "ward.district.name")
+    @Mapping(target = "ownerAvatar", source = "owner.avatar")
 
     @Mapping(target = "provinceId", source = "ward.district.province.id")
     @Mapping(target = "provinceName", source = "ward.district.province.name")
 
-    @Mapping(target = "additionalAmenities", source = "additionalAmenities")
+    @Mapping(target = "districtId", source = "ward.district.id")
+    @Mapping(target = "districtName", source = "ward.district.name")
 
-    @Mapping(target = "imageUrls", expression = "java(mapImageUrls(room.getImages()))")
-    @Mapping(target = "videoUrls", expression = "java(mapVideoUrls(room.getVideos()))")
-    @Mapping(target = "amenities", expression = "java(mapAmenities(room.getAmenities()))")
+    @Mapping(target = "wardId", source = "ward.id")
+    @Mapping(target = "wardName", source = "ward.name")
+
+    @Mapping(target = "imageUrls",
+            expression = "java(mapImageUrls(room.getImages()))")
+
+    @Mapping(target = "videoUrls",
+            expression = "java(mapVideoUrls(room.getVideos()))")
+
+    @Mapping(target = "amenities",
+            expression = "java(mapAmenities(room.getAmenities()))")
 
     RoomResponse toResponse(Room room);
 
+    /*
+     * ==========================================================
+     * Helper Methods
+     * ==========================================================
+     */
+
     default List<String> mapImageUrls(List<RoomImage> images) {
-        if (images == null) {
+
+        if (images == null || images.isEmpty()) {
             return List.of();
         }
 
@@ -78,7 +112,8 @@ public interface RoomMapper {
     }
 
     default List<String> mapVideoUrls(List<RoomVideo> videos) {
-        if (videos == null) {
+
+        if (videos == null || videos.isEmpty()) {
             return List.of();
         }
 
@@ -88,7 +123,8 @@ public interface RoomMapper {
     }
 
     default Set<String> mapAmenities(Set<Amenity> amenities) {
-        if (amenities == null) {
+
+        if (amenities == null || amenities.isEmpty()) {
             return Set.of();
         }
 

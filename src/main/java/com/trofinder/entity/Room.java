@@ -1,8 +1,5 @@
 package com.trofinder.entity;
 
-// ======================
-// Import Java
-// ======================
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -41,155 +38,210 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "rooms")
-
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class Room {
 
-    /*
-     * ==========================
-     * ID
-     * ==========================
-     */
+    // ==========================================================
+    // PRIMARY KEY
+    // ==========================================================
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /*
-     * Chủ trọ
-     */
+    // ==========================================================
+    // OWNER
+    // ==========================================================
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
-    /*
-     * Tiêu đề
-     */
+    // ==========================================================
+    // CONTACT
+    // ==========================================================
+
+    @Column(name = "contact_name", length = 100)
+    private String contactName;
+
+    @Column(name = "contact_phone", length = 20)
+    private String contactPhone;
+
+    @Column(name = "zalo_phone", length = 20)
+    private String zaloPhone;
+
+    @Column(name = "zalo_qr_url")
+    private String zaloQrUrl;
+
+    // ==========================================================
+    // BASIC INFORMATION
+    // ==========================================================
+
     @Column(nullable = false, length = 255)
     private String title;
 
-    /*
-     * Mô tả
-     */
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    /*
-     * Giá thuê
-     */
-    @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal price;
-
-    /*
-     * Diện tích
-     */
-    @Column(nullable = false, precision = 6, scale = 2)
-    private BigDecimal area;
-
-    /*
-     * Loại phòng
-     */
     @Enumerated(EnumType.STRING)
     @Column(name = "room_type", nullable = false)
     private RoomType roomType;
 
-    /*
-     * Tiền cọc
-     */
-    @Builder.Default
-    @Column(precision = 12, scale = 2)
-    private BigDecimal deposit = BigDecimal.ZERO;
-
-    /*
-     * Giá điện
-     */
-    @Builder.Default
-    @Column(name = "electric_price", precision = 10, scale = 2)
-    private BigDecimal electricPrice = BigDecimal.ZERO;
-
-    /*
-     * Giá nước
-     */
-    @Builder.Default
-    @Column(name = "water_price", precision = 10, scale = 2)
-    private BigDecimal waterPrice = BigDecimal.ZERO;
-
-    /*
-     * Địa chỉ
-     */
     @Column(nullable = false, length = 255)
     private String address;
 
-    /*
-     * Phường/Xã
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ward_id", nullable = false)
     private Ward ward;
 
-    /*
-     * Vĩ độ
-     */
     @Column(precision = 10, scale = 8)
     private BigDecimal latitude;
 
-    /*
-     * Kinh độ
-     */
     @Column(precision = 11, scale = 8)
     private BigDecimal longitude;
 
-    /*
-     * Trạng thái phòng
-     */
+    // ==========================================================
+    // PRICE
+    // ==========================================================
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal price;
+
+    @Builder.Default
+    @Column(precision = 12, scale = 2)
+    private BigDecimal deposit = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "electric_price", precision = 10, scale = 2)
+    private BigDecimal electricPrice = BigDecimal.ZERO;
+
+    @Builder.Default
+    @Column(name = "water_price", precision = 10, scale = 2)
+    private BigDecimal waterPrice = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 6, scale = 2)
+    private BigDecimal area;
+
+    @Column(columnDefinition = "TEXT")
+    private String additionalAmenities;
+
+    // ==========================================================
+    // ROOM QUANTITY
+    // ==========================================================
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer quantity = 1;
+
+    @Builder.Default
+    @Column(name = "available_quantity", nullable = false)
+    private Integer availableQuantity = 1;
+
+    // ==========================================================
+    // CONTACT SETTINGS
+    // ==========================================================
+
+    @Builder.Default
+    @Column(name = "allow_booking", nullable = false)
+    private Boolean allowBooking = true;
+
+    @Builder.Default
+    @Column(name = "allow_call", nullable = false)
+    private Boolean allowCall = true;
+
+    @Builder.Default
+    @Column(name = "allow_chat", nullable = false)
+    private Boolean allowChat = true;
+
+    // ==========================================================
+    // STATISTICS
+    // ==========================================================
+
+    @Builder.Default
+    @Column(name = "view_count", nullable = false)
+    private Long viewCount = 0L;
+
+    @Builder.Default
+    @Column(name = "favorite_count", nullable = false)
+    private Integer favoriteCount = 0;
+
+    @Builder.Default
+    @Column(name = "contact_count", nullable = false)
+    private Integer contactCount = 0;
+
+    @Builder.Default
+    @Column(name = "appointment_count", nullable = false)
+    private Integer appointmentCount = 0;
+
+    @Builder.Default
+    @Column(name = "share_count", nullable = false)
+    private Integer shareCount = 0;
+
+    // ==========================================================
+    // DISPLAY
+    // ==========================================================
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean featured = false;
+
+    @Builder.Default
+    @Column(name = "priority_score", nullable = false)
+    private Integer priorityScore = 0;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean verified = false;
+
+    // ==========================================================
+    // STATUS
+    // ==========================================================
+
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RoomStatus status = RoomStatus.AVAILABLE;
 
-    /*
-     * Trạng thái duyệt
-     */
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "approval_status", nullable = false)
     private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
 
-    /*
-     * Lượt xem
-     */
     @Builder.Default
-    @Column(name = "view_count")
-    private Long viewCount = 0L;
-    /*
-    * Xóa mềm.
-    */
-     @Builder.Default
-     @Column(nullable = false)
-     private Boolean deleted = false;
+    @Column(nullable = false)
+    private Boolean deleted = false;
 
-    /*
-     * Ngày tạo
-     */
+    // ==========================================================
+    // TIME
+    // ==========================================================
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
+    @Column(name = "boosted_at")
+    private LocalDateTime boostedAt;
+
+    @Column(name = "last_contact_at")
+    private LocalDateTime lastContactAt;
+
+    @Column(name = "expired_at")
+    private LocalDateTime expiredAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    /*
-     * Ngày cập nhật
-     */
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+        // ==========================================================
+    // IMAGES
+    // ==========================================================
 
-    /*
-     * ==========================
-     * Danh sách ảnh
-     * ==========================
-     */
     @JsonIgnore
     @Builder.Default
     @OneToMany(
@@ -199,11 +251,10 @@ public class Room {
     )
     private List<RoomImage> images = new ArrayList<>();
 
-    /*
-     * ==========================
-     * Danh sách video
-     * ==========================
-     */
+    // ==========================================================
+    // VIDEOS
+    // ==========================================================
+
     @JsonIgnore
     @Builder.Default
     @OneToMany(
@@ -213,11 +264,10 @@ public class Room {
     )
     private List<RoomVideo> videos = new ArrayList<>();
 
-    /*
-     * ==========================
-     * Danh sách tiện ích
-     * ==========================
-     */
+    // ==========================================================
+    // AMENITIES
+    // ==========================================================
+
     @Builder.Default
     @ManyToMany
     @JoinTable(
@@ -226,7 +276,5 @@ public class Room {
             inverseJoinColumns = @JoinColumn(name = "amenity_id")
     )
     private Set<Amenity> amenities = new HashSet<>();
-        @Column(columnDefinition = "TEXT")
-        private String additionalAmenities;
 
 }

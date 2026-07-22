@@ -1,8 +1,10 @@
 package com.trofinder.service.impl;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.List;
+import java.util.ArrayList;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,6 +35,7 @@ import com.trofinder.dto.request.RoomSearchRequest;
 import com.trofinder.specification.RoomSpecification;
 import com.trofinder.storage.FileStorageService;
 import com.trofinder.entity.RoomImage;
+import com.trofinder.exception.BadRequestException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -63,11 +66,17 @@ public class RoomServiceImpl implements RoomService {
     @Transactional
     public RoomResponse create(RoomCreateRequest request) {
 
+        User owner = getCurrentUser();
+
+        Ward ward = getWard(request.getWardId());
+
+        Set<Amenity> amenities = getAmenities(request.getAmenityIds());
+
         Room room = buildRoom(
                 request,
-                getCurrentUser(),
-                getWard(request.getWardId()),
-                getAmenities(request.getAmenityIds()));
+                owner,
+                ward,
+                amenities);
 
         return saveRoom(room);
     }
@@ -158,6 +167,7 @@ public class RoomServiceImpl implements RoomService {
         validateOwner(room);
 
         room.setDeleted(true);
+        room.setStatus(RoomStatus.HIDDEN);
 
         roomRepository.save(room);
     }
@@ -171,19 +181,55 @@ public class RoomServiceImpl implements RoomService {
             Long roomId,
             List<MultipartFile> files) {
 
+        /*
+        * Lấy phòng
+        */
         Room room = getRoom(roomId);
 
+        /*
+        * Kiểm tra quyền
+        */
         validateOwner(room);
 
+        /*
+        * Kiểm tra danh sách ảnh
+        */
+        if (files == null || files.isEmpty()) {
+            throw new BadRequestException("Vui lòng chọn ít nhất một ảnh.");
+        }
+
+        /*
+        * Kiểm tra số lượng ảnh tối đa
+        */
+        List<RoomImage> currentImages =
+                roomImageRepository.findByRoomIdOrderByDisplayOrder(roomId);
+
+        if (currentImages.size() + files.size() > 20) {
+            throw new BadRequestException(
+                    "Mỗi phòng chỉ được tối đa 20 ảnh.");
+        }
+
+        /*
+        * Upload ảnh lên Cloudinary
+        */
         List<String> imageUrls =
                 fileStorageService.storeRoomImages(roomId, files);
 
-        boolean hasThumbnail =
-                roomImageRepository.findByRoomIdAndThumbnailTrue(roomId) != null;
+        /*
+        * Kiểm tra đã có thumbnail chưa
+        */
+        boolean hasThumbnail = currentImages.stream()
+                .anyMatch(RoomImage::getThumbnail);
 
-        int displayOrder = roomImageRepository
-                .findByRoomIdOrderByDisplayOrder(roomId)
-                .size() + 1;
+        /*
+        * Thứ tự hiển thị
+        */
+        int displayOrder = currentImages.size() + 1;
+
+        /*
+        * Tạo danh sách RoomImage
+        */
+        List<RoomImage> roomImages = new ArrayList<>();
 
         for (String imageUrl : imageUrls) {
 
@@ -194,10 +240,15 @@ public class RoomServiceImpl implements RoomService {
                     .thumbnail(!hasThumbnail)
                     .build();
 
-            roomImageRepository.save(roomImage);
+            roomImages.add(roomImage);
 
             hasThumbnail = true;
         }
+
+        /*
+        * Lưu một lần
+        */
+        roomImageRepository.saveAll(roomImages);
 
         return imageUrls;
     }
@@ -273,58 +324,165 @@ public class RoomServiceImpl implements RoomService {
             Ward ward,
             Set<Amenity> amenities) {
 
+        /*
+        * Chủ bài đăng
+        */
         room.setOwner(owner);
 
+        /*
+        * Địa chỉ
+        */
         room.setWard(ward);
 
+        /*
+        * Tiện ích
+        */
         room.setAmenities(amenities);
-
         room.setAdditionalAmenities(request.getAdditionalAmenities());
+
+        /*
+        * Thông tin liên hệ
+        */
+        room.setContactName(request.getContactName());
+        room.setContactPhone(request.getContactPhone());
+        room.setZaloPhone(request.getZaloPhone());
+        room.setZaloQrUrl(request.getZaloQrUrl());
+
+        /*
+        * Số lượng phòng
+        */
+        room.setQuantity(request.getQuantity());
+
+        /*
+        * Cài đặt liên hệ
+        */
+        room.setAllowBooking(request.getAllowBooking());
+        room.setAllowCall(request.getAllowCall());
+        room.setAllowChat(request.getAllowChat());
     }
     /**
      * Cập nhật dữ liệu Room
      */
     private void updateRoom(
-            Room room,
-            RoomCreateRequest request,
-            Ward ward,
-            Set<Amenity> amenities) {
+        Room room,
+        RoomCreateRequest request,
+        Ward ward,
+        Set<Amenity> amenities) {
 
-        room.setTitle(request.getTitle());
-        room.setDescription(request.getDescription());
+    /*
+     * ==========================
+     * THÔNG TIN LIÊN HỆ
+     * ==========================
+     */
+    room.setContactName(request.getContactName());
+    room.setContactPhone(request.getContactPhone());
+    room.setZaloPhone(request.getZaloPhone());
+    room.setZaloQrUrl(request.getZaloQrUrl());
 
-        room.setPrice(request.getPrice());
-        room.setArea(request.getArea());
+    /*
+     * ==========================
+     * THÔNG TIN BÀI ĐĂNG
+     * ==========================
+     */
+    room.setTitle(request.getTitle());
+    room.setDescription(request.getDescription());
 
-        room.setRoomType(request.getRoomType());
+    room.setRoomType(request.getRoomType());
 
-        room.setDeposit(request.getDeposit());
-        room.setElectricPrice(request.getElectricPrice());
-        room.setWaterPrice(request.getWaterPrice());
+    /*
+     * ==========================
+     * GIÁ
+     * ==========================
+     */
+    room.setPrice(request.getPrice());
+    room.setDeposit(request.getDeposit());
+    room.setElectricPrice(request.getElectricPrice());
+    room.setWaterPrice(request.getWaterPrice());
 
-        room.setAddress(request.getAddress());
+    /*
+     * ==========================
+     * THÔNG TIN PHÒNG
+     * ==========================
+     */
+    room.setArea(request.getArea());
+    room.setQuantity(request.getQuantity());
 
-        room.setWard(ward);
+    /*
+     * Nếu hiện tại số phòng còn trống lớn hơn tổng số phòng
+     * thì điều chỉnh lại để không bị sai dữ liệu.
+     */
+    if (room.getAvailableQuantity() > request.getQuantity()) {
+        room.setAvailableQuantity(request.getQuantity());
+    }
 
-        room.setLatitude(request.getLatitude());
-        room.setLongitude(request.getLongitude());
+    /*
+     * ==========================
+     * ĐỊA CHỈ
+     * ==========================
+     */
+    room.setAddress(request.getAddress());
+    room.setWard(ward);
 
-        room.setAmenities(amenities);
+    room.setLatitude(request.getLatitude());
+    room.setLongitude(request.getLongitude());
 
-        room.setAdditionalAmenities(request.getAdditionalAmenities());
+    /*
+     * ==========================
+     * TIỆN ÍCH
+     * ==========================
+     */
+    room.setAmenities(amenities);
+    room.setAdditionalAmenities(request.getAdditionalAmenities());
 
+    /*
+     * ==========================
+     * CÀI ĐẶT LIÊN HỆ
+     * ==========================
+     */
+    room.setAllowBooking(request.getAllowBooking());
+    room.setAllowCall(request.getAllowCall());
+    room.setAllowChat(request.getAllowChat());
     }
     /**
      * Giá trị mặc định
      */
     private void applyDefaultValues(Room room) {
 
+        /*
+        * Trạng thái
+        */
         room.setStatus(RoomStatus.AVAILABLE);
-
         room.setApprovalStatus(ApprovalStatus.PENDING);
 
+        /*
+        * Số lượng phòng còn trống
+        */
+        room.setAvailableQuantity(room.getQuantity());
+
+        /*
+        * Thống kê
+        */
         room.setViewCount(0L);
-        
+        room.setFavoriteCount(0);
+        room.setContactCount(0);
+        room.setAppointmentCount(0);
+        room.setShareCount(0);
+
+        /*
+        * Hiển thị
+        */
+        room.setFeatured(false);
+        room.setPriorityScore(0);
+        room.setVerified(false);
+
+        /*
+        * Thời gian
+        */
+        room.setPublishedAt(null);
+
+        /*
+        * Xóa mềm
+        */
         room.setDeleted(false);
     }
     /**
@@ -392,40 +550,40 @@ public class RoomServiceImpl implements RoomService {
         roomImageRepository.saveAll(images);
     }
    @Override
-@Transactional
-public String uploadVideo(
-        Long roomId,
-        MultipartFile file) {
+    @Transactional
+    public String uploadVideo(
+            Long roomId,
+            MultipartFile file) {
 
-    Room room = getRoom(roomId);
+        Room room = getRoom(roomId);
 
-    validateOwner(room);
+        validateOwner(room);
 
-    roomVideoRepository.findByRoomId(roomId)
-            .ifPresent(video -> {
+        roomVideoRepository.findByRoomId(roomId)
+                .ifPresent(video -> {
 
-                fileStorageService.deleteVideo(
-                        video.getVideoUrl());
+                    fileStorageService.deleteVideo(
+                            video.getVideoUrl());
 
-                roomVideoRepository.delete(video);
+                    roomVideoRepository.delete(video);
 
-            });
+                });
 
-    String videoUrl =
-            fileStorageService.storeRoomVideo(
-                    roomId,
-                    file);
+        String videoUrl =
+                fileStorageService.storeRoomVideo(
+                        roomId,
+                        file);
 
-    RoomVideo roomVideo = RoomVideo.builder()
-            .room(room)
-            .videoUrl(videoUrl)
-            .build();
+        RoomVideo roomVideo = RoomVideo.builder()
+                .room(room)
+                .videoUrl(videoUrl)
+                .build();
 
-    roomVideoRepository.save(roomVideo);
+        roomVideoRepository.save(roomVideo);
 
-    return videoUrl;
+        return videoUrl;
 
-}
+    }
     @Override
     public String getVideo(Long roomId) {
 
