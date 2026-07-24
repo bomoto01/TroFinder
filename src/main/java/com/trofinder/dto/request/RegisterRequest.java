@@ -44,5 +44,10 @@ public class RegisterRequest {
 
     @NotBlank(message = "Xác nhận mật khẩu không được để trống")
     private String confirmPassword;
-
+    @NotBlank(message = "Vai trò không được để trống")
+    @Pattern(
+        regexp = "(?i)LANDLORD|TENANT",
+        message = "Vai trò chỉ được là LANDLORD hoặc TENANT"
+    )
+    private String role;
 }

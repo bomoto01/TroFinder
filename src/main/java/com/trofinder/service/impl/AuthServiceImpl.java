@@ -48,7 +48,7 @@ public class AuthServiceImpl implements AuthService {
 
         validateRegister(request);
 
-        Role role = getDefaultRole();
+        Role role = getRole(request.getRole());
 
         User user = buildUser(request, role);
 
@@ -158,16 +158,16 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * Lấy Role mặc định
+     * Lấy Role theo tên
      */
-    private Role getDefaultRole() {
+        private Role getRole(String roleName) {
 
-        return roleRepository.findByName("TENANT")
+        return roleRepository.findByName(roleName.toUpperCase())
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "Không tìm thấy Role TENANT"));
+                                "Không tìm thấy Role: " + roleName));
 
-    }
+        }
 
     /**
      * Tạo User
