@@ -1,5 +1,4 @@
 package com.trofinder.service.impl;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -10,11 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.trofinder.dto.request.AppointmentCreateRequest;
 import com.trofinder.dto.request.AppointmentUpdateRequest;
+import com.trofinder.dto.request.NotificationCreateRequest;
 import com.trofinder.dto.response.AppointmentResponse;
 import com.trofinder.entity.Appointment;
 import com.trofinder.entity.Room;
 import com.trofinder.entity.User;
 import com.trofinder.enums.AppointmentStatus;
+import com.trofinder.enums.NotificationType;
 import com.trofinder.exception.BadRequestException;
 import com.trofinder.exception.ResourceNotFoundException;
 import com.trofinder.exception.UnauthorizedException;
@@ -23,6 +24,7 @@ import com.trofinder.repository.AppointmentRepository;
 import com.trofinder.repository.RoomRepository;
 import com.trofinder.service.interfaces.AppointmentService;
 import com.trofinder.service.interfaces.CurrentUserService;
+import com.trofinder.service.interfaces.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -44,6 +46,8 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final AppointmentMapper appointmentMapper;
 
     private final CurrentUserService currentUserService;
+
+    private final NotificationService notificationService;
 
     /*
      * ==========================================================
@@ -101,9 +105,22 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setDeleted(false);
 
         /*
-         * Lưu
-         */
-        return saveAppointment(appointment);
+        * Lưu
+        */
+        AppointmentResponse response = saveAppointment(appointment);
+        notificationService.create(
+        NotificationCreateRequest.builder()
+                .userId(room.getOwner().getId())
+                .title("Có lịch hẹn mới")
+                .content(
+                        tenant.getFullName()
+                                + " vừa đặt lịch xem phòng \""
+                                + room.getTitle()
+                                + "\".")
+                .type(NotificationType.NEW_APPOINTMENT)
+                .referenceId(response.getId())
+                .build());
+        return response;
     }
 
     /*
@@ -214,14 +231,57 @@ public class AppointmentServiceImpl implements AppointmentService {
          */
         switch (newStatus) {
 
-            case CONFIRMED ->
-                    appointment.setConfirmedAt(LocalDateTime.now());
+            case CONFIRMED -> {
 
-            case CANCELLED ->
-                    appointment.setCancelledAt(LocalDateTime.now());
+                appointment.setConfirmedAt(LocalDateTime.now());
 
-            case COMPLETED ->
-                    appointment.setCompletedAt(LocalDateTime.now());
+                notificationService.create(
+                        NotificationCreateRequest.builder()
+                                .userId(appointment.getTenant().getId())
+                                .title("Lịch hẹn đã được xác nhận")
+                                .content(
+                                        "Chủ trọ đã xác nhận lịch xem phòng \""
+                                                + appointment.getRoom().getTitle()
+                                                + "\".")
+                                .type(NotificationType.APPOINTMENT_CONFIRMED)
+                                .referenceId(appointment.getId())
+                                .build());
+                }
+
+            case CANCELLED -> {
+
+                appointment.setCancelledAt(LocalDateTime.now());
+
+                notificationService.create(
+                        NotificationCreateRequest.builder()
+                                .userId(appointment.getTenant().getId())
+                                .title("Lịch hẹn đã bị hủy")
+                                .content(
+                                        "Chủ trọ đã hủy lịch xem phòng \""
+                                                + appointment.getRoom().getTitle()
+                                                + "\".")
+                                .type(NotificationType.APPOINTMENT_CANCELLED)
+                                .referenceId(appointment.getId())
+                                .build());
+                }
+
+            case COMPLETED -> {
+
+                appointment.setCompletedAt(LocalDateTime.now());
+
+                notificationService.create(
+                        NotificationCreateRequest.builder()
+                                .userId(appointment.getTenant().getId())
+                                .title("Buổi xem phòng đã hoàn thành")
+                                .content(
+                                        "Buổi xem phòng \""
+                                                + appointment.getRoom().getTitle()
+                                                + "\" đã hoàn thành. "
+                                                + "Bạn có thể đánh giá chủ trọ.")
+                                .type(NotificationType.APPOINTMENT_COMPLETED)
+                                .referenceId(appointment.getId())
+                                .build());
+                }
 
             default -> {
             }
@@ -282,6 +342,21 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointment.setDeleted(true);
 
         saveAppointment(appointment);
+        if (appointment.getTenant().getId().equals(currentUser.getId())) {
+
+                notificationService.create(
+                        NotificationCreateRequest.builder()
+                                .userId(appointment.getOwner().getId())
+                                .title("Người thuê đã hủy lịch")
+                                .content(
+                                        appointment.getTenant().getFullName()
+                                                + " đã hủy lịch xem phòng \""
+                                                + appointment.getRoom().getTitle()
+                                                + "\".")
+                                .type(NotificationType.APPOINTMENT_CANCELLED)
+                                .referenceId(appointment.getId())
+                                .build());
+                }
     }
 
         /*
