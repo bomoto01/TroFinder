@@ -55,7 +55,8 @@ public class SecurityConfig {
                         // Public Geolocation & Administrative Addresses
                         .requestMatchers(
                                 "/api/provinces/**",
-                                "/api/districts/**"
+                                "/api/districts/**",
+                                "/api/universities/**"
                         ).permitAll()
 
                         // WebSocket Handshake

@@ -29,18 +29,80 @@ interface PresetLocation {
   type: 'university' | 'district' | 'city' | 'street' | 'other';
 }
 
-const PRESET_LOCATIONS: PresetLocation[] = [
-  { name: 'Đại học Thương Mại (TMU)', address: '79 Hồ Tùng Mậu, Mai Dịch, Cầu Giấy', lat: 21.0366, lng: 105.7745, type: 'university' },
-  { name: 'Đại học Công Nghiệp Hà Nội (HaUI)', address: '298 Cầu Diễn, Bắc Từ Liêm', lat: 21.0534, lng: 105.7355, type: 'university' },
-  { name: 'Đại học Quốc Gia Hà Nội (VNU)', address: '144 Xuân Thủy, Cầu Giấy', lat: 21.0382, lng: 105.7827, type: 'university' },
-  { name: 'Đại học Sư Phạm Hà Nội (HNUE)', address: '136 Xuân Thủy, Cầu Giấy', lat: 21.0371, lng: 105.7836, type: 'university' },
-  { name: 'Đại học Bách Khoa Hà Nội (HUST)', address: 'Số 1 Đại Cồ Việt, Hai Bà Trưng', lat: 21.0044, lng: 105.8433, type: 'university' },
-  { name: 'Đại học Kinh Tế Quốc Dân (NEU)', address: '207 Giải Phóng, Hai Bà Trưng', lat: 21.0007, lng: 105.8427, type: 'university' },
-  { name: 'Đại học Ngoại Thương (FTU)', address: '91 Chùa Láng, Đống Đa', lat: 21.0232, lng: 105.8032, type: 'university' },
+function normalizeVietnamese(str: string): string {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .trim();
+}
+
+const NATIONWIDE_PRESET_LOCATIONS: PresetLocation[] = [
+  // 1. Thái Bình
+  { name: 'Đại học Y Dược Thái Bình (TBUMP)', address: '292 Phố Quang Trung, TP. Thái Bình', lat: 20.4431, lng: 106.3378, type: 'university' },
+  { name: 'Đại học Thái Bình (TBU)', address: 'Xã Tân Bình, TP. Thái Bình', lat: 20.4682, lng: 106.3045, type: 'university' },
+  { name: 'Tỉnh Thái Bình', address: 'Tỉnh Thái Bình, Đồng bằng sông Hồng, Việt Nam', lat: 20.4463, lng: 106.3365, type: 'city' },
+  { name: 'Thành phố Thái Bình', address: 'Thành phố Thái Bình, Tỉnh Thái Bình', lat: 20.4509, lng: 106.3476, type: 'city' },
+
+  // 2. Hà Nội - Các trường Đại học
+  { name: 'Đại học Thương Mại (TMU)', address: '79 Hồ Tùng Mậu, Mai Dịch, Cầu Giấy, Hà Nội', lat: 21.0366, lng: 105.7745, type: 'university' },
+  { name: 'Đại học Công Nghiệp Hà Nội (HaUI)', address: '298 Cầu Diễn, Bắc Từ Liêm, Hà Nội', lat: 21.0534, lng: 105.7355, type: 'university' },
+  { name: 'Đại học Quốc Gia Hà Nội (VNU)', address: '144 Xuân Thủy, Cầu Giấy, Hà Nội', lat: 21.0382, lng: 105.7827, type: 'university' },
+  { name: 'Đại học Sư Phạm Hà Nội (HNUE)', address: '136 Xuân Thủy, Cầu Giấy, Hà Nội', lat: 21.0371, lng: 105.7836, type: 'university' },
+  { name: 'Đại học Bách Khoa Hà Nội (HUST)', address: 'Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội', lat: 21.0044, lng: 105.8433, type: 'university' },
+  { name: 'Đại học Kinh Tế Quốc Dân (NEU)', address: '207 Giải Phóng, Hai Bà Trưng, Hà Nội', lat: 21.0007, lng: 105.8427, type: 'university' },
+  { name: 'Đại học Y Hà Nội (HMU)', address: 'Số 1 Tôn Thất Tùng, Kim Liên, Đống Đa, Hà Nội', lat: 21.0035, lng: 105.8315, type: 'university' },
+  { name: 'Đại học Luật Hà Nội (HLU)', address: '87 Nguyễn Chí Thanh, Láng Thượng, Đống Đa, Hà Nội', lat: 21.0189, lng: 105.8087, type: 'university' },
+  { name: 'Đại học Thủy Lợi (TLU)', address: '175 Tây Sơn, Trung Liệt, Đống Đa, Hà Nội', lat: 21.0076, lng: 105.8236, type: 'university' },
+  { name: 'Đại học Giao Thông Vận Tải (UTC)', address: 'Số 3 Cầu Giấy, Láng Thượng, Đống Đa, Hà Nội', lat: 21.0289, lng: 105.8016, type: 'university' },
+  { name: 'Học viện Báo chí và Tuyên truyền (AJC)', address: '36 Xuân Thủy, Dịch Vọng Hậu, Cầu Giấy, Hà Nội', lat: 21.0368, lng: 105.7885, type: 'university' },
+  { name: 'Học viện Công nghệ Bưu chính Viễn thông (PTIT)', address: 'Km 10 Nguyễn Trãi, Mộ Lao, Hà Đông, Hà Nội', lat: 20.9806, lng: 105.7876, type: 'university' },
+  { name: 'Đại học Ngoại Thương (FTU)', address: '91 Chùa Láng, Láng Thượng, Đống Đa, Hà Nội', lat: 21.0232, lng: 105.8032, type: 'university' },
+  { name: 'Đại học Kiến Trúc Hà Nội (HAU)', address: 'Km 10 Đường Nguyễn Trãi, Văn Quán, Hà Đông, Hà Nội', lat: 20.9818, lng: 105.7891, type: 'university' },
+  { name: 'Đại học Hà Nội (HANU)', address: 'Km 9 Đường Nguyễn Trãi, Trung Văn, Nam Từ Liêm, Hà Nội', lat: 20.9877, lng: 105.7946, type: 'university' },
+
+  // 3. Hà Nội - Các quận chính
   { name: 'Quận Cầu Giấy', address: 'Khu vực Cầu Giấy, Hà Nội', lat: 21.0333, lng: 105.7933, type: 'district' },
   { name: 'Quận Bắc Từ Liêm', address: 'Khu vực Bắc Từ Liêm, Hà Nội', lat: 21.0667, lng: 105.7667, type: 'district' },
+  { name: 'Quận Nam Từ Liêm', address: 'Khu vực Nam Từ Liêm, Hà Nội', lat: 21.0189, lng: 105.7656, type: 'district' },
   { name: 'Quận Đống Đa', address: 'Khu vực Đống Đa, Hà Nội', lat: 21.0167, lng: 105.8250, type: 'district' },
   { name: 'Quận Hai Bà Trưng', address: 'Khu vực Hai Bà Trưng, Hà Nội', lat: 21.0050, lng: 105.8550, type: 'district' },
+  { name: 'Quận Thanh Xuân', address: 'Khu vực Thanh Xuân, Hà Nội', lat: 20.9989, lng: 105.8094, type: 'district' },
+  { name: 'Quận Ba Đình', address: 'Khu vực Ba Đình, Hà Nội', lat: 21.0341, lng: 105.8275, type: 'district' },
+  { name: 'Quận Hà Đông', address: 'Khu vực Hà Đông, Hà Nội', lat: 20.9722, lng: 105.7778, type: 'district' },
+  { name: 'Thành phố Hà Nội', address: 'Thủ đô Hà Nội, Việt Nam', lat: 21.0285, lng: 105.8542, type: 'city' },
+
+  // 4. Các trường và tỉnh thành lớn toàn quốc
+  { name: 'Đại học Hàng Hải Việt Nam (VMU)', address: '484 Lạch Tray, Kênh Dương, Lê Chân, Hải Phòng', lat: 20.8354, lng: 106.6967, type: 'university' },
+  { name: 'Thành phố Hải Phòng', address: 'Thành phố Hải Phòng, Việt Nam', lat: 20.8449, lng: 106.6881, type: 'city' },
+  { name: 'Đại học Bách Khoa - ĐH Đà Nẵng (DUT)', address: '54 Nguyễn Lương Bằng, Liên Chiểu, Đà Nẵng', lat: 16.0748, lng: 108.1498, type: 'university' },
+  { name: 'Thành phố Đà Nẵng', address: 'Thành phố Đà Nẵng, Việt Nam', lat: 16.0544, lng: 108.2022, type: 'city' },
+  { name: 'Đại học Bách Khoa TP.HCM (HCMUT)', address: '268 Lý Thường Kiệt, Phường 14, Quận 10, TP.HCM', lat: 10.7725, lng: 106.6578, type: 'university' },
+  { name: 'Đại học Kinh Tế TP.HCM (UEH)', address: '59C Nguyễn Đình Chiểu, Phường 6, Quận 3, TP.HCM', lat: 10.7828, lng: 106.6958, type: 'university' },
+  { name: 'Đại học Quốc Gia TP.HCM (VNU-HCM)', address: 'Phường Linh Trung, TP. Thủ Đức, TP.HCM', lat: 10.8700, lng: 106.8030, type: 'university' },
+  { name: 'Thành phố Hồ Chí Minh', address: 'TP. Hồ Chí Minh, Việt Nam', lat: 10.8231, lng: 106.6297, type: 'city' },
+  { name: 'Đại học Cần Thơ (CTU)', address: 'Khu II, Đường 3/2, Xuân Khánh, Ninh Kiều, Cần Thơ', lat: 10.0309, lng: 105.7689, type: 'university' },
+  { name: 'Thành phố Cần Thơ', address: 'Thành phố Cần Thơ, Việt Nam', lat: 10.0452, lng: 105.7469, type: 'city' },
+  { name: 'Đại học Thái Nguyên (TNU)', address: 'Phường Tân Thịnh, TP. Thái Nguyên, Thái Nguyên', lat: 21.5855, lng: 105.8083, type: 'university' },
+  { name: 'Tỉnh Thái Nguyên', address: 'Tỉnh Thái Nguyên, Việt Nam', lat: 21.5928, lng: 105.8442, type: 'city' },
+  { name: 'Tỉnh Nam Định', address: 'Tỉnh Nam Định, Việt Nam', lat: 20.4172, lng: 106.1683, type: 'city' },
+  { name: 'Tỉnh Ninh Bình', address: 'Tỉnh Ninh Bình, Việt Nam', lat: 20.2506, lng: 105.9744, type: 'city' },
+  { name: 'Tỉnh Thanh Hóa', address: 'Tỉnh Thanh Hóa, Việt Nam', lat: 19.8067, lng: 105.7852, type: 'city' },
+  { name: 'Tỉnh Nghệ An', address: 'Tỉnh Nghệ An, Việt Nam', lat: 19.2343, lng: 104.9200, type: 'city' },
+  { name: 'Thành phố Huế', address: 'Thành phố Huế, Tỉnh Thừa Thiên Huế, Việt Nam', lat: 16.4637, lng: 107.5909, type: 'city' },
+  { name: 'Tỉnh Quảng Ninh', address: 'Tỉnh Quảng Ninh, Việt Nam', lat: 21.0064, lng: 107.2925, type: 'city' },
+  { name: 'Tỉnh Hưng Yên', address: 'Tỉnh Hưng Yên, Việt Nam', lat: 20.6464, lng: 106.0511, type: 'city' },
+  { name: 'Tỉnh Hải Dương', address: 'Tỉnh Hải Dương, Việt Nam', lat: 20.9372, lng: 106.3151, type: 'city' },
+  { name: 'Tỉnh Bắc Ninh', address: 'Tỉnh Bắc Ninh, Việt Nam', lat: 21.1861, lng: 106.0763, type: 'city' },
+  { name: 'Tỉnh Vĩnh Phúc', address: 'Tỉnh Vĩnh Phúc, Việt Nam', lat: 21.3609, lng: 105.5474, type: 'city' },
+  { name: 'Tỉnh Khánh Hòa', address: 'TP. Nha Trang, Tỉnh Khánh Hòa, Việt Nam', lat: 12.2388, lng: 109.1967, type: 'city' },
+  { name: 'Tỉnh Lâm Đồng', address: 'TP. Đà Lạt, Tỉnh Lâm Đồng, Việt Nam', lat: 11.9404, lng: 108.4583, type: 'city' },
+  { name: 'Tỉnh Bình Dương', address: 'Tỉnh Bình Dương, Việt Nam', lat: 11.1643, lng: 106.6718, type: 'city' },
+  { name: 'Tỉnh Đồng Nai', address: 'Tỉnh Đồng Nai, Việt Nam', lat: 11.0526, lng: 107.0425, type: 'city' },
+  { name: 'Tỉnh Bà Rịa - Vũng Tàu', address: 'Tỉnh Bà Rịa - Vũng Tàu, Việt Nam', lat: 10.5425, lng: 107.2429, type: 'city' },
 ];
 
 export const MapViewPage: React.FC = () => {
@@ -259,33 +321,43 @@ export const MapViewPage: React.FC = () => {
     setSearchNotice(null);
 
     if (mapInstanceRef.current) {
-      const zoom = loc.type === 'city' ? 11 : loc.type === 'district' ? 13 : 15;
+      const zoom = loc.type === 'city' ? 12 : loc.type === 'district' ? 14 : 15;
       mapInstanceRef.current.flyTo([loc.lat, loc.lng], zoom, { duration: 1.5 });
 
-      // Add a distinct target pin
+      // Add a distinct target pin (University or Location)
       if (searchPinLayerRef.current) {
         searchPinLayerRef.current.clearLayers();
+        const isUni = loc.type === 'university';
         const pinIcon = L.divIcon({
           className: 'target-pin',
           html: `
-            <div style="background-color: #dc2626; color: white; border-radius: 9999px; padding: 6px; border: 3px solid white; box-shadow: 0 4px 14px rgba(220,38,38,0.5); display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; font-size: 16px;">
-              📍
+            <div style="background-color: ${isUni ? '#4f46e5' : '#dc2626'}; color: white; border-radius: 9999px; padding: 6px; border: 3px solid white; box-shadow: 0 4px 14px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; font-size: 18px;">
+              ${isUni ? '🎓' : '📍'}
             </div>
           `,
-          iconSize: [36, 36],
-          iconAnchor: [18, 36],
+          iconSize: [38, 38],
+          iconAnchor: [19, 38],
         });
         const pin = L.marker([loc.lat, loc.lng], { icon: pinIcon })
-          .bindPopup(`<b>${loc.name}</b><br><small>${loc.address}</small>`)
+          .bindPopup(`
+            <div style="font-family: inherit; min-width: 180px;">
+              <div style="font-weight: 700; font-size: 13px; color: #1e293b; margin-bottom: 2px;">
+                ${isUni ? '🎓 ' : '📍 '}${loc.name}
+              </div>
+              <div style="font-size: 11px; color: #64748b; line-height: 1.3;">
+                ${loc.address}
+              </div>
+            </div>
+          `)
           .openPopup();
         searchPinLayerRef.current.addLayer(pin);
       }
 
-      // Filter rooms within ~8km
+      // Filter rooms within ~15km
       const nearby = allOriginalMarkers.filter((m) => {
         if (!m.latitude || !m.longitude) return false;
         const dist = calculateHaversineKm(loc.lat, loc.lng, Number(m.latitude), Number(m.longitude));
-        return dist <= 8.0;
+        return dist <= 15.0;
       });
 
       if (nearby.length > 0) {
@@ -307,23 +379,28 @@ export const MapViewPage: React.FC = () => {
     if (!searchLocation.trim()) return;
 
     setShowLocationSuggestions(false);
-    const lower = searchLocation.toLowerCase().trim();
+    const rawSearch = searchLocation.trim();
+    const normalized = normalizeVietnamese(rawSearch);
 
-    // 1. Check presets
-    const matchedPreset = PRESET_LOCATIONS.find(
-      (p) => p.name.toLowerCase().includes(lower) || p.address.toLowerCase().includes(lower)
-    );
+    // 1. Check nationwide presets (supports unaccented matching like "thai binh", "bach khoa")
+    const matchedPreset = NATIONWIDE_PRESET_LOCATIONS.find((p) => {
+      const pNorm = normalizeVietnamese(p.name);
+      const aNorm = normalizeVietnamese(p.address);
+      return pNorm.includes(normalized) || aNorm.includes(normalized) || normalized.includes(pNorm);
+    });
+
     if (matchedPreset) {
       handleSelectLocation(matchedPreset);
       return;
     }
 
     // 2. Check room titles/addresses in database
-    const filtered = allOriginalMarkers.filter(
-      (m) =>
-        m.title.toLowerCase().includes(lower) ||
-        m.address.toLowerCase().includes(lower)
-    );
+    const filtered = allOriginalMarkers.filter((m) => {
+      const tNorm = normalizeVietnamese(m.title);
+      const aNorm = normalizeVietnamese(m.address);
+      return tNorm.includes(normalized) || aNorm.includes(normalized);
+    });
+
     if (filtered.length > 0) {
       setMarkers(filtered);
       renderMarkers(filtered);
@@ -333,7 +410,7 @@ export const MapViewPage: React.FC = () => {
 
     // 3. Fallback: Geocode via Photon API across all of Vietnam (Provinces, Universities, Streets)
     try {
-      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(searchLocation.trim())}&limit=1&lang=vi`;
+      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(rawSearch)}&limit=1&lang=vi`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -344,11 +421,11 @@ export const MapViewPage: React.FC = () => {
           const parts = [p.name, p.street, p.locality, p.city, p.country].filter(Boolean);
           const address = parts.slice(1).join(', ') || p.country || 'Việt Nam';
           const item: PresetLocation = {
-            name: p.name || searchLocation,
+            name: p.name || rawSearch,
             address: address,
             lat: coords[1],
             lng: coords[0],
-            type: p.osm_value === 'university' ? 'university' : 'city',
+            type: p.osm_value === 'university' || p.osm_value === 'school' ? 'university' : 'city',
           };
           handleSelectLocation(item);
           return;
@@ -359,7 +436,7 @@ export const MapViewPage: React.FC = () => {
     }
 
     setSearchNotice({
-      locationName: searchLocation,
+      locationName: rawSearch,
       message: 'Không tìm thấy toạ độ cho địa điểm này. Vui lòng kiểm tra lại chính tả hoặc thử địa chỉ cụ thể hơn.',
     });
   };
@@ -420,12 +497,17 @@ export const MapViewPage: React.FC = () => {
   const combinedSuggestions: PresetLocation[] = React.useMemo(() => {
     const list: PresetLocation[] = [];
     const seen = new Set<string>();
+    const normalizedQuery = normalizeVietnamese(searchLocation);
 
-    PRESET_LOCATIONS.forEach((loc) => {
+    NATIONWIDE_PRESET_LOCATIONS.forEach((loc) => {
+      const nName = normalizeVietnamese(loc.name);
+      const nAddr = normalizeVietnamese(loc.address);
       const match =
-        !searchLocation.trim() ||
-        loc.name.toLowerCase().includes(searchLocation.toLowerCase()) ||
-        loc.address.toLowerCase().includes(searchLocation.toLowerCase());
+        !normalizedQuery ||
+        nName.includes(normalizedQuery) ||
+        nAddr.includes(normalizedQuery) ||
+        normalizedQuery.includes(nName);
+
       if (match && !seen.has(loc.name.toLowerCase())) {
         seen.add(loc.name.toLowerCase());
         list.push(loc);
@@ -439,7 +521,7 @@ export const MapViewPage: React.FC = () => {
       }
     });
 
-    return list.slice(0, 8);
+    return list.slice(0, 10);
   }, [searchLocation, geocodeSuggestions]);
 
   return (
