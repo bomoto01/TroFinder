@@ -1,22 +1,68 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { roomService } from '../../services/room.service';
 import { aiService } from '../../services/ai.service';
-import { MapMarker } from '../../types';
-import { MapPin, Sparkles, Loader2, ArrowRight, Search, LocateFixed, RefreshCw } from 'lucide-react';
+import { MapMarker, AiMapResponse } from '../../types';
+import {
+  MapPin,
+  Sparkles,
+  Loader2,
+  ArrowRight,
+  Search,
+  LocateFixed,
+  RefreshCw,
+  X,
+  Compass,
+  Navigation,
+  School,
+  Building2,
+  ChevronRight,
+  Info
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import L from 'leaflet';
+
+interface PresetLocation {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  type: 'university' | 'district';
+}
+
+const PRESET_LOCATIONS: PresetLocation[] = [
+  { name: 'Đại học Thương Mại (TMU)', address: '79 Hồ Tùng Mậu, Mai Dịch, Cầu Giấy', lat: 21.0366, lng: 105.7745, type: 'university' },
+  { name: 'Đại học Công Nghiệp Hà Nội (HaUI)', address: '298 Cầu Diễn, Bắc Từ Liêm', lat: 21.0534, lng: 105.7355, type: 'university' },
+  { name: 'Đại học Quốc Gia Hà Nội (VNU)', address: '144 Xuân Thủy, Cầu Giấy', lat: 21.0382, lng: 105.7827, type: 'university' },
+  { name: 'Đại học Sư Phạm Hà Nội (HNUE)', address: '136 Xuân Thủy, Cầu Giấy', lat: 21.0371, lng: 105.7836, type: 'university' },
+  { name: 'Đại học Bách Khoa Hà Nội (HUST)', address: 'Số 1 Đại Cồ Việt, Hai Bà Trưng', lat: 21.0044, lng: 105.8433, type: 'university' },
+  { name: 'Đại học Kinh Tế Quốc Dân (NEU)', address: '207 Giải Phóng, Hai Bà Trưng', lat: 21.0007, lng: 105.8427, type: 'university' },
+  { name: 'Đại học Ngoại Thương (FTU)', address: '91 Chùa Láng, Đống Đa', lat: 21.0232, lng: 105.8032, type: 'university' },
+  { name: 'Quận Cầu Giấy', address: 'Khu vực Cầu Giấy, Hà Nội', lat: 21.0333, lng: 105.7933, type: 'district' },
+  { name: 'Quận Bắc Từ Liêm', address: 'Khu vực Bắc Từ Liêm, Hà Nội', lat: 21.0667, lng: 105.7667, type: 'district' },
+  { name: 'Quận Đống Đa', address: 'Khu vực Đống Đa, Hà Nội', lat: 21.0167, lng: 105.8250, type: 'district' },
+  { name: 'Quận Hai Bà Trưng', address: 'Khu vực Hai Bà Trưng, Hà Nội', lat: 21.0050, lng: 105.8550, type: 'district' },
+];
 
 export const MapViewPage: React.FC = () => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const searchPinLayerRef = useRef<L.LayerGroup | null>(null);
 
   const [markers, setMarkers] = useState<MapMarker[]>([]);
+  const [allOriginalMarkers, setAllOriginalMarkers] = useState<MapMarker[]>([]);
   const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Standard Google Maps style search
+  const [searchLocation, setSearchLocation] = useState('');
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+
+  // AI Map Assistant modal / bottom drawer state
+  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiSearching, setIsAiSearching] = useState(false);
-  const [aiResultText, setAiResultText] = useState<string | null>(null);
+  const [aiResponse, setAiResponse] = useState<AiMapResponse | null>(null);
 
   const defaultCenter: [number, number] = [21.0285, 105.8542];
 
@@ -30,7 +76,7 @@ export const MapViewPage: React.FC = () => {
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Reliable, free map layers without watermark or API key
+    // Reliable Google Maps & Esri layers
     const googleStreetLayer = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
       attribution: '&copy; Google Maps',
       subdomains: ['0', '1', '2', '3'],
@@ -48,7 +94,6 @@ export const MapViewPage: React.FC = () => {
       maxZoom: 19,
     });
 
-    // Default to Google Maps Road map
     googleStreetLayer.addTo(map);
 
     L.control.layers(
@@ -64,7 +109,9 @@ export const MapViewPage: React.FC = () => {
     const layerGroup = L.layerGroup().addTo(map);
     markersLayerRef.current = layerGroup;
 
-    // Invalidate map size after DOM mount
+    const searchPinGroup = L.layerGroup().addTo(map);
+    searchPinLayerRef.current = searchPinGroup;
+
     const timer = setTimeout(() => {
       map.invalidateSize();
     }, 200);
@@ -88,6 +135,7 @@ export const MapViewPage: React.FC = () => {
       const data = await roomService.getMapMarkers();
       const list = data || [];
       setMarkers(list);
+      setAllOriginalMarkers(list);
       renderMarkers(list);
       if (list.length > 0 && mapInstanceRef.current) {
         fitToMarkers(list);
@@ -108,36 +156,6 @@ export const MapViewPage: React.FC = () => {
     if (validPoints.length > 0) {
       const bounds = L.latLngBounds(validPoints);
       mapInstanceRef.current.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
-    }
-  };
-
-  const handleAiMapSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!aiPrompt.trim()) return;
-
-    setIsAiSearching(true);
-    try {
-      const res = await aiService.searchMapByAi(aiPrompt);
-      if (res && res.markers) {
-        setMarkers(res.markers);
-        renderMarkers(res.markers);
-        setAiResultText(`AI tìm thấy ${res.totalFound} phòng quanh ${res.anchorName}`);
-
-        if (mapInstanceRef.current && res.centerLat && res.centerLng) {
-          mapInstanceRef.current.flyTo(
-            [Number(res.centerLat), Number(res.centerLng)],
-            res.zoom || 14,
-            { duration: 1.5 }
-          );
-        } else if (res.markers.length > 0) {
-          fitToMarkers(res.markers);
-        }
-      }
-    } catch (err) {
-      console.error('AI map search failed:', err);
-      alert('Không thể tìm kiếm AI trên bản đồ. Vui lòng thử lại.');
-    } finally {
-      setIsAiSearching(false);
     }
   };
 
@@ -183,54 +201,224 @@ export const MapViewPage: React.FC = () => {
     });
   };
 
+  // 1. Standard Google Maps style search handler
+  const handleSelectLocation = (loc: PresetLocation) => {
+    setSearchLocation(loc.name);
+    setShowLocationSuggestions(false);
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.flyTo([loc.lat, loc.lng], 15, { duration: 1.5 });
+
+      // Add a distinct target pin
+      if (searchPinLayerRef.current) {
+        searchPinLayerRef.current.clearLayers();
+        const pinIcon = L.divIcon({
+          className: 'target-pin',
+          html: `
+            <div style="background-color: #dc2626; color: white; border-radius: 9999px; padding: 6px; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;">
+              📍
+            </div>
+          `,
+          iconSize: [34, 34],
+          iconAnchor: [17, 34],
+        });
+        const pin = L.marker([loc.lat, loc.lng], { icon: pinIcon })
+          .bindPopup(`<b>${loc.name}</b><br><small>${loc.address}</small>`)
+          .openPopup();
+        searchPinLayerRef.current.addLayer(pin);
+      }
+
+      // Filter rooms within ~3km
+      const nearby = allOriginalMarkers.filter((m) => {
+        if (!m.latitude || !m.longitude) return false;
+        const dist = calculateHaversineKm(loc.lat, loc.lng, Number(m.latitude), Number(m.longitude));
+        return dist <= 3.5;
+      });
+
+      if (nearby.length > 0) {
+        setMarkers(nearby);
+        renderMarkers(nearby);
+      } else {
+        setMarkers(allOriginalMarkers);
+        renderMarkers(allOriginalMarkers);
+      }
+    }
+  };
+
+  const handleStandardSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchLocation.trim()) return;
+
+    const lower = searchLocation.toLowerCase().trim();
+    const matched = PRESET_LOCATIONS.find(
+      (p) => p.name.toLowerCase().includes(lower) || p.address.toLowerCase().includes(lower)
+    );
+
+    if (matched) {
+      handleSelectLocation(matched);
+    } else {
+      // Filter rooms matching text
+      const filtered = allOriginalMarkers.filter(
+        (m) =>
+          m.title.toLowerCase().includes(lower) ||
+          m.address.toLowerCase().includes(lower)
+      );
+      if (filtered.length > 0) {
+        setMarkers(filtered);
+        renderMarkers(filtered);
+        fitToMarkers(filtered);
+      } else {
+        alert(`Không tìm thấy phòng hoặc địa điểm khớp với "${searchLocation}". Vui lòng thử từ khóa khác.`);
+      }
+    }
+    setShowLocationSuggestions(false);
+  };
+
+  // 2. AI Map Assistant search handler
+  const handleAiMapSearch = async (promptText?: string) => {
+    const textToSearch = promptText || aiPrompt;
+    if (!textToSearch.trim()) return;
+
+    setIsAiSearching(true);
+    try {
+      const res = await aiService.searchMapByAi(textToSearch);
+      if (res) {
+        setAiResponse(res);
+        if (res.markers && res.markers.length > 0) {
+          setMarkers(res.markers);
+          renderMarkers(res.markers);
+        }
+
+        if (mapInstanceRef.current && res.centerLat && res.centerLng) {
+          mapInstanceRef.current.flyTo(
+            [Number(res.centerLat), Number(res.centerLng)],
+            res.zoom || 14,
+            { duration: 1.5 }
+          );
+        } else if (res.markers && res.markers.length > 0) {
+          fitToMarkers(res.markers);
+        }
+      }
+    } catch (err) {
+      console.error('AI map search failed:', err);
+      alert('Không thể kết nối trợ lý AI bản đồ lúc này. Vui lòng thử lại sau.');
+    } finally {
+      setIsAiSearching(false);
+    }
+  };
+
+  const calculateHaversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
   const getImageSrc = (thumb?: string | null) => {
     if (!thumb) return 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=300&q=80';
     if (thumb.startsWith('http')) return thumb;
     return `http://localhost:8080${thumb}`;
   };
 
-  return (
-    <div className="relative h-[calc(100vh-4rem)] flex flex-col">
-      {/* Floating AI Map Search Bar */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-xl px-4">
-        <form
-          onSubmit={handleAiMapSearch}
-          className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-indigo-200/80 p-2 flex items-center gap-2"
-        >
-          <div className="pl-2 text-indigo-500">
-            <Sparkles className="w-5 h-5 animate-pulse" />
-          </div>
-          <input
-            type="text"
-            value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder="AI Map: Tìm phòng gần Bách Khoa / ĐH Quốc Gia dưới 4tr..."
-            className="flex-1 px-2 py-1.5 text-xs sm:text-sm bg-transparent border-none focus:outline-none text-slate-800 placeholder-slate-400"
-          />
-          <button
-            type="submit"
-            disabled={isAiSearching}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1 shrink-0 shadow-sm transition-all"
-          >
-            {isAiSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
-            <span>Tìm bằng AI</span>
-          </button>
-        </form>
+  const filteredSuggestions = PRESET_LOCATIONS.filter(
+    (loc) =>
+      !searchLocation.trim() ||
+      loc.name.toLowerCase().includes(searchLocation.toLowerCase()) ||
+      loc.address.toLowerCase().includes(searchLocation.toLowerCase())
+  );
 
-        {aiResultText && (
-          <div className="mt-2 text-center">
-            <span className="inline-block px-3 py-1 rounded-full bg-slate-900/80 text-white text-xs font-medium backdrop-blur-md shadow-md">
-              {aiResultText}
-            </span>
-          </div>
-        )}
+  return (
+    <div className="relative h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+      {/* 1. TOP BAR: Standard Google Maps style location search */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-xl px-4">
+        <div className="relative">
+          <form
+            onSubmit={handleStandardSearchSubmit}
+            className="bg-white rounded-2xl shadow-xl border border-slate-200 p-2 flex items-center gap-2"
+          >
+            <div className="pl-2 text-slate-400">
+              <Search className="w-5 h-5 text-blue-600" />
+            </div>
+            <input
+              type="text"
+              value={searchLocation}
+              onChange={(e) => {
+                setSearchLocation(e.target.value);
+                setShowLocationSuggestions(true);
+              }}
+              onFocus={() => setShowLocationSuggestions(true)}
+              placeholder="Tìm địa điểm, tên đường, trường ĐH (VD: Hồ Tùng Mậu, Cầu Giấy, ĐH Thương Mại)..."
+              className="flex-1 px-2 py-1.5 text-xs sm:text-sm bg-transparent border-none focus:outline-none text-slate-800 placeholder-slate-400"
+            />
+            {searchLocation && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchLocation('');
+                  setMarkers(allOriginalMarkers);
+                  renderMarkers(allOriginalMarkers);
+                  if (searchPinLayerRef.current) searchPinLayerRef.current.clearLayers();
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-xl flex items-center gap-1 shrink-0 shadow-sm transition-all"
+            >
+              <span>Tìm kiếm</span>
+            </button>
+          </form>
+
+          {/* Autocomplete suggestions dropdown */}
+          {showLocationSuggestions && filteredSuggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-72 overflow-y-auto z-[1001]">
+              <div className="p-2 border-b border-slate-100 flex items-center justify-between text-xs text-slate-400 font-semibold px-3">
+                <span>Gợi ý địa điểm phổ biến</span>
+                <button
+                  type="button"
+                  onClick={() => setShowLocationSuggestions(false)}
+                  className="hover:text-slate-600"
+                >
+                  Đóng
+                </button>
+              </div>
+              {filteredSuggestions.map((loc, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => handleSelectLocation(loc)}
+                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center gap-3 border-b border-slate-50 last:border-none transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                    {loc.type === 'university' ? <School className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-slate-800 truncate">{loc.name}</p>
+                    <p className="text-[11px] text-slate-500 truncate">{loc.address}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Map Header Overlay */}
-      <div className="absolute top-4 left-4 z-[999] hidden md:flex bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg border border-slate-200 items-center gap-3">
+      {/* Map Header Status Overlay (Left Side) */}
+      <div className="absolute top-4 left-4 z-[999] hidden lg:flex bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg border border-slate-200 items-center gap-3">
         <MapPin className="w-5 h-5 text-blue-600" />
         <div>
-          <h2 className="text-xs font-bold text-slate-900">Bản đồ trực quan</h2>
+          <h2 className="text-xs font-bold text-slate-900">Bản đồ TroFinder</h2>
           <span className="text-[11px] text-slate-500">Đang ghim {markers.length} phòng trọ</span>
         </div>
         {isLoading && <Loader2 className="w-4 h-4 animate-spin text-blue-600 ml-1" />}
@@ -252,16 +440,191 @@ export const MapViewPage: React.FC = () => {
         )}
       </div>
 
-      {/* Map Container */}
+      {/* 2. MAP CONTAINER */}
       <div
         ref={mapContainerRef}
         style={{ height: 'calc(100vh - 4rem)', width: '100%', minHeight: '500px' }}
         className="w-full flex-1"
       />
 
+      {/* 3. BOTTOM AI ASSISTANT BUTTON (Floating Action Button) */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-2">
+        {!isAiDrawerOpen && (
+          <button
+            onClick={() => setIsAiDrawerOpen(true)}
+            className="group bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold px-6 py-3.5 rounded-full shadow-2xl flex items-center gap-2.5 transition-all hover:scale-105 border-2 border-white/60"
+          >
+            <Sparkles className="w-5 h-5 text-yellow-300 animate-pulse" />
+            <span className="text-sm">Hỏi Trợ lý AI Bản đồ</span>
+            <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-medium hidden sm:inline">
+              Tìm theo trường học & khoảng cách
+            </span>
+          </button>
+        )}
+      </div>
+
+      {/* 4. AI MAP DRAWER / MODAL PANEL */}
+      {isAiDrawerOpen && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1001] w-full max-w-2xl px-4 animate-in fade-in slide-in-from-bottom duration-300">
+          <div className="bg-white rounded-3xl p-5 shadow-2xl border border-indigo-200 space-y-4 max-h-[85vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <Sparkles className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    Trợ lý AI Bản đồ TroFinder
+                    <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold">
+                      Mô hình RAG Dữ liệu Thực tế
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Phân tích khoảng cách giữa các trường, gợi ý khu vực lý tưởng và ghim phòng trên bản đồ.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAiDrawerOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs font-bold transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick Prompt Chips */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold text-slate-400 block">Gợi ý câu hỏi phổ biến:</span>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const q = 'Tìm phòng quanh khu vực trường đại học Thương Mại và đại học công nghiệp Hà Nội';
+                    setAiPrompt(q);
+                    handleAiMapSearch(q);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 font-medium border border-indigo-100 text-left transition-colors flex items-center gap-1.5"
+                >
+                  <span>🎓</span>
+                  <span>ĐH Thương Mại & ĐH Công Nghiệp</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const q = 'Tìm phòng gần ĐH Bách Khoa và ĐH Kinh Tế Quốc Dân dưới 4 triệu';
+                    setAiPrompt(q);
+                    handleAiMapSearch(q);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 font-medium border border-indigo-100 text-left transition-colors flex items-center gap-1.5"
+                >
+                  <span>🎓</span>
+                  <span>ĐH Bách Khoa & ĐH Kinh Tế Quốc Dân</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const q = 'Tìm chung cư mini quanh Cầu Giấy gần ĐH Quốc Gia có điều hòa';
+                    setAiPrompt(q);
+                    handleAiMapSearch(q);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 font-medium border border-indigo-100 text-left transition-colors flex items-center gap-1.5"
+                >
+                  <span>🏢</span>
+                  <span>CCMN Cầu Giấy gần ĐHQG</span>
+                </button>
+              </div>
+            </div>
+
+            {/* AI Search Form */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAiMapSearch();
+              }}
+              className="flex gap-2"
+            >
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="Nhập yêu cầu: VD: Tôi muốn tìm phòng quanh ĐH Thương Mại và ĐH Công Nghiệp Hà Nội..."
+                  className="w-full px-4 py-3 text-xs sm:text-sm bg-slate-50 border border-indigo-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-800 placeholder-slate-400"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isAiSearching}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold px-5 py-3 rounded-2xl flex items-center gap-1.5 shrink-0 shadow-sm transition-all disabled:opacity-50"
+              >
+                {isAiSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                <span>Hỏi AI</span>
+              </button>
+            </form>
+
+            {/* AI Response Display */}
+            {aiResponse && (
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/80 to-purple-50/50 border border-indigo-100 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-indigo-900">
+                      📍 Điểm mốc: {aiResponse.anchorName}
+                    </span>
+                    {aiResponse.distanceKm && (
+                      <span className="text-[11px] font-semibold bg-indigo-200/80 text-indigo-800 px-2 py-0.5 rounded-full">
+                        Khoảng cách: ~{aiResponse.distanceKm} km
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                    Ghim {aiResponse.totalFound} phòng trên bản đồ
+                  </span>
+                </div>
+
+                {/* Recommended Areas Tags */}
+                {aiResponse.recommendedAreas && aiResponse.recommendedAreas.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[11px] font-semibold text-slate-500">Khu vực đề xuất ở giữa:</span>
+                    {aiResponse.recommendedAreas.map((area, aIdx) => (
+                      <span
+                        key={aIdx}
+                        className="text-[11px] font-medium bg-white text-indigo-700 px-2 py-0.5 rounded-lg border border-indigo-200 shadow-2xs"
+                      >
+                        {area}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Detailed Analysis Paragraph */}
+                <div className="text-xs text-slate-700 leading-relaxed bg-white/80 p-3 rounded-xl border border-indigo-100">
+                  <p className="whitespace-pre-line">{aiResponse.aiAnalysis}</p>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAiDrawerOpen(false);
+                      if (aiResponse.markers && aiResponse.markers.length > 0) {
+                        fitToMarkers(aiResponse.markers);
+                      }
+                    }}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                  >
+                    Thu nhỏ để xem các phòng trên bản đồ <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Selected Room Popup Drawer */}
       {selectedMarker && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] max-w-sm w-full mx-auto px-4">
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-[1000] max-w-sm w-full mx-auto px-4">
           <div className="bg-white rounded-2xl p-4 shadow-2xl border border-slate-200 flex gap-3 relative">
             <button
               onClick={() => setSelectedMarker(null)}

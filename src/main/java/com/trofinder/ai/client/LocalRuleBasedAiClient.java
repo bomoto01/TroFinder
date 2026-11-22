@@ -27,6 +27,21 @@ public class LocalRuleBasedAiClient implements AiClient {
         String electric = extractGroup(context, "Giá điện:\\s*([0-9.]+)\\s*VNĐ");
         String water = extractGroup(context, "Giá nước:\\s*([0-9.]+)\\s*VNĐ");
 
+        // 0. Hỏi về tìm phòng quanh nhiều trường đại học / bản đồ
+        if ((lower.contains("thương mại") && lower.contains("công nghiệp"))
+                || (lower.contains("tmu") && lower.contains("haui"))) {
+            return "Đại học Thương Mại (Mai Dịch, Cầu Giấy) và Đại học Công nghiệp Hà Nội (Nhổn, Bắc Từ Liêm) cách nhau khoảng 4.5 km dọc theo trục Quốc lộ 32 (Hồ Tùng Mậu - Cầu Diễn) và tuyến Metro Nhổn. " +
+                   "Khu vực lý tưởng nhất để thuê phòng nằm ở giữa 2 trường là Phú Diễn, Cầu Diễn hoặc Kiều Mai (cách mỗi trường chỉ 1.5 - 2.5 km, xe buýt 29, 32 và tàu điện chạy thẳng). " +
+                   "TroFinder đã tự động căn chỉnh tâm bản đồ và ghim các phòng trọ phù hợp trực tiếp trên bản đồ cho bạn!";
+        }
+
+        if ((lower.contains("bách khoa") && (lower.contains("quốc dân") || lower.contains("neu")))
+                || (lower.contains("hust") && lower.contains("neu"))) {
+            return "Đại học Bách Khoa và Đại học Kinh tế Quốc Dân nằm liền kề nhau tại khu vực Hai Bà Trưng (cách nhau chưa đầy 500m). " +
+                   "Các khu vực trọ lý tưởng nhất là Tạ Quang Bửu, Đại Cồ Việt, Trần Đại Nghĩa và ngõ Giải Phóng. " +
+                   "TroFinder đã ghim các phòng trọ thực tế quanh khu vực Bách - Kinh - Xây trên bản đồ cho bạn!";
+        }
+
         // 1. Hỏi về số người ở được
         if (lower.contains("bao nhiêu người") || lower.contains("mấy người") || lower.contains("ở được mấy")
                 || lower.contains("số người") || lower.contains("ở chung") || lower.contains("ghép")) {

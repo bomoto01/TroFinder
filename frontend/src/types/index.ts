@@ -87,6 +87,9 @@ export interface AiMapResponse {
   zoom: number;
   totalFound: number;
   markers: MapMarker[];
+  aiAnalysis?: string;
+  distanceKm?: number;
+  recommendedAreas?: string[];
 }
 
 export interface Review {

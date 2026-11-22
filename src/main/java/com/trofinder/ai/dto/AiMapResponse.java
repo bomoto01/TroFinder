@@ -22,4 +22,7 @@ public class AiMapResponse {
     private Integer zoom;
     private Integer totalFound;
     private List<MapMarkerResponse> markers;
+    private String aiAnalysis;
+    private Double distanceKm;
+    private List<String> recommendedAreas;
 }
