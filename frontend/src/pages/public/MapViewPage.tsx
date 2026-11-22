@@ -26,7 +26,7 @@ interface PresetLocation {
   address: string;
   lat: number;
   lng: number;
-  type: 'university' | 'district';
+  type: 'university' | 'district' | 'city' | 'street' | 'other';
 }
 
 const PRESET_LOCATIONS: PresetLocation[] = [
@@ -54,9 +54,12 @@ export const MapViewPage: React.FC = () => {
   const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Standard Google Maps style search
+  // Standard Google Maps style search & live Geocoding
   const [searchLocation, setSearchLocation] = useState('');
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [geocodeSuggestions, setGeocodeSuggestions] = useState<PresetLocation[]>([]);
+  const [isSearchingGeocode, setIsSearchingGeocode] = useState(false);
+  const [searchNotice, setSearchNotice] = useState<{ locationName: string; message: string } | null>(null);
 
   // AI Map Assistant modal / bottom drawer state
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
@@ -201,13 +204,63 @@ export const MapViewPage: React.FC = () => {
     });
   };
 
-  // 1. Standard Google Maps style search handler
+  // 1. Debounced geocoding search for Google Maps style address lookup
+  useEffect(() => {
+    const query = searchLocation.trim();
+    if (!query || query.length < 2) {
+      setGeocodeSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingGeocode(true);
+      try {
+        const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=vi`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.features) {
+            const list: PresetLocation[] = data.features.map((f: any) => {
+              const p = f.properties || {};
+              const coords = f.geometry?.coordinates || [0, 0];
+              const parts = [p.name, p.street, p.locality, p.city, p.country].filter(Boolean);
+              const address = parts.slice(1).join(', ') || p.country || 'Việt Nam';
+              let type: 'university' | 'district' | 'city' | 'street' | 'other' = 'street';
+              if (p.osm_value === 'university' || p.osm_value === 'school' || p.osm_value === 'college') {
+                type = 'university';
+              } else if (p.osm_value === 'administrative' || p.osm_key === 'boundary') {
+                type = 'city';
+              }
+              return {
+                name: p.name || query,
+                address: address,
+                lat: coords[1],
+                lng: coords[0],
+                type: type,
+              };
+            });
+            setGeocodeSuggestions(list);
+          }
+        }
+      } catch (err) {
+        console.error('Geocode search error:', err);
+      } finally {
+        setIsSearchingGeocode(false);
+      }
+    }, 280);
+
+    return () => clearTimeout(timer);
+  }, [searchLocation]);
+
+  // 2. Standard Google Maps style search handler
   const handleSelectLocation = (loc: PresetLocation) => {
     setSearchLocation(loc.name);
     setShowLocationSuggestions(false);
+    setSearchNotice(null);
 
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.flyTo([loc.lat, loc.lng], 15, { duration: 1.5 });
+      const zoom = loc.type === 'city' ? 11 : loc.type === 'district' ? 13 : 15;
+      mapInstanceRef.current.flyTo([loc.lat, loc.lng], zoom, { duration: 1.5 });
 
       // Add a distinct target pin
       if (searchPinLayerRef.current) {
@@ -215,12 +268,12 @@ export const MapViewPage: React.FC = () => {
         const pinIcon = L.divIcon({
           className: 'target-pin',
           html: `
-            <div style="background-color: #dc2626; color: white; border-radius: 9999px; padding: 6px; border: 3px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; width: 34px; height: 34px;">
+            <div style="background-color: #dc2626; color: white; border-radius: 9999px; padding: 6px; border: 3px solid white; box-shadow: 0 4px 14px rgba(220,38,38,0.5); display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; font-size: 16px;">
               📍
             </div>
           `,
-          iconSize: [34, 34],
-          iconAnchor: [17, 34],
+          iconSize: [36, 36],
+          iconAnchor: [18, 36],
         });
         const pin = L.marker([loc.lat, loc.lng], { icon: pinIcon })
           .bindPopup(`<b>${loc.name}</b><br><small>${loc.address}</small>`)
@@ -228,50 +281,87 @@ export const MapViewPage: React.FC = () => {
         searchPinLayerRef.current.addLayer(pin);
       }
 
-      // Filter rooms within ~3km
+      // Filter rooms within ~8km
       const nearby = allOriginalMarkers.filter((m) => {
         if (!m.latitude || !m.longitude) return false;
         const dist = calculateHaversineKm(loc.lat, loc.lng, Number(m.latitude), Number(m.longitude));
-        return dist <= 3.5;
+        return dist <= 8.0;
       });
 
       if (nearby.length > 0) {
         setMarkers(nearby);
         renderMarkers(nearby);
       } else {
-        setMarkers(allOriginalMarkers);
-        renderMarkers(allOriginalMarkers);
+        setMarkers([]);
+        renderMarkers([]);
+        setSearchNotice({
+          locationName: loc.name,
+          message: 'Hiện tại khu vực này chưa có phòng trọ nào được đăng trên TroFinder.',
+        });
       }
     }
   };
 
-  const handleStandardSearchSubmit = (e: React.FormEvent) => {
+  const handleStandardSearchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchLocation.trim()) return;
 
+    setShowLocationSuggestions(false);
     const lower = searchLocation.toLowerCase().trim();
-    const matched = PRESET_LOCATIONS.find(
+
+    // 1. Check presets
+    const matchedPreset = PRESET_LOCATIONS.find(
       (p) => p.name.toLowerCase().includes(lower) || p.address.toLowerCase().includes(lower)
     );
-
-    if (matched) {
-      handleSelectLocation(matched);
-    } else {
-      // Filter rooms matching text
-      const filtered = allOriginalMarkers.filter(
-        (m) =>
-          m.title.toLowerCase().includes(lower) ||
-          m.address.toLowerCase().includes(lower)
-      );
-      if (filtered.length > 0) {
-        setMarkers(filtered);
-        renderMarkers(filtered);
-        fitToMarkers(filtered);
-      } else {
-        alert(`Không tìm thấy phòng hoặc địa điểm khớp với "${searchLocation}". Vui lòng thử từ khóa khác.`);
-      }
+    if (matchedPreset) {
+      handleSelectLocation(matchedPreset);
+      return;
     }
-    setShowLocationSuggestions(false);
+
+    // 2. Check room titles/addresses in database
+    const filtered = allOriginalMarkers.filter(
+      (m) =>
+        m.title.toLowerCase().includes(lower) ||
+        m.address.toLowerCase().includes(lower)
+    );
+    if (filtered.length > 0) {
+      setMarkers(filtered);
+      renderMarkers(filtered);
+      fitToMarkers(filtered);
+      return;
+    }
+
+    // 3. Fallback: Geocode via Photon API across all of Vietnam (Provinces, Universities, Streets)
+    try {
+      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(searchLocation.trim())}&limit=1&lang=vi`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.features && data.features.length > 0) {
+          const f = data.features[0];
+          const p = f.properties || {};
+          const coords = f.geometry?.coordinates || [0, 0];
+          const parts = [p.name, p.street, p.locality, p.city, p.country].filter(Boolean);
+          const address = parts.slice(1).join(', ') || p.country || 'Việt Nam';
+          const item: PresetLocation = {
+            name: p.name || searchLocation,
+            address: address,
+            lat: coords[1],
+            lng: coords[0],
+            type: p.osm_value === 'university' ? 'university' : 'city',
+          };
+          handleSelectLocation(item);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('Geocoding submit failed:', err);
+    }
+
+    setSearchNotice({
+      locationName: searchLocation,
+      message: 'Không tìm thấy toạ độ cho địa điểm này. Vui lòng kiểm tra lại chính tả hoặc thử địa chỉ cụ thể hơn.',
+    });
   };
 
   // 2. AI Map Assistant search handler
@@ -327,12 +417,30 @@ export const MapViewPage: React.FC = () => {
     return `http://localhost:8080${thumb}`;
   };
 
-  const filteredSuggestions = PRESET_LOCATIONS.filter(
-    (loc) =>
-      !searchLocation.trim() ||
-      loc.name.toLowerCase().includes(searchLocation.toLowerCase()) ||
-      loc.address.toLowerCase().includes(searchLocation.toLowerCase())
-  );
+  const combinedSuggestions: PresetLocation[] = React.useMemo(() => {
+    const list: PresetLocation[] = [];
+    const seen = new Set<string>();
+
+    PRESET_LOCATIONS.forEach((loc) => {
+      const match =
+        !searchLocation.trim() ||
+        loc.name.toLowerCase().includes(searchLocation.toLowerCase()) ||
+        loc.address.toLowerCase().includes(searchLocation.toLowerCase());
+      if (match && !seen.has(loc.name.toLowerCase())) {
+        seen.add(loc.name.toLowerCase());
+        list.push(loc);
+      }
+    });
+
+    geocodeSuggestions.forEach((loc) => {
+      if (!seen.has(loc.name.toLowerCase())) {
+        seen.add(loc.name.toLowerCase());
+        list.push(loc);
+      }
+    });
+
+    return list.slice(0, 8);
+  }, [searchLocation, geocodeSuggestions]);
 
   return (
     <div className="relative h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
@@ -344,7 +452,11 @@ export const MapViewPage: React.FC = () => {
             className="bg-white rounded-2xl shadow-xl border border-slate-200 p-2 flex items-center gap-2"
           >
             <div className="pl-2 text-slate-400">
-              <Search className="w-5 h-5 text-blue-600" />
+              {isSearchingGeocode ? (
+                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+              ) : (
+                <Search className="w-5 h-5 text-blue-600" />
+              )}
             </div>
             <input
               type="text"
@@ -354,7 +466,7 @@ export const MapViewPage: React.FC = () => {
                 setShowLocationSuggestions(true);
               }}
               onFocus={() => setShowLocationSuggestions(true)}
-              placeholder="Tìm địa điểm, tên đường, trường ĐH (VD: Hồ Tùng Mậu, Cầu Giấy, ĐH Thương Mại)..."
+              placeholder="Tìm địa điểm, tỉnh thành, trường ĐH (VD: Thái Bình, ĐH Thương Mại, Cầu Giấy)..."
               className="flex-1 px-2 py-1.5 text-xs sm:text-sm bg-transparent border-none focus:outline-none text-slate-800 placeholder-slate-400"
             />
             {searchLocation && (
@@ -362,6 +474,7 @@ export const MapViewPage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setSearchLocation('');
+                  setSearchNotice(null);
                   setMarkers(allOriginalMarkers);
                   renderMarkers(allOriginalMarkers);
                   if (searchPinLayerRef.current) searchPinLayerRef.current.clearLayers();
@@ -380,10 +493,13 @@ export const MapViewPage: React.FC = () => {
           </form>
 
           {/* Autocomplete suggestions dropdown */}
-          {showLocationSuggestions && filteredSuggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-72 overflow-y-auto z-[1001]">
+          {showLocationSuggestions && combinedSuggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-80 overflow-y-auto z-[1001]">
               <div className="p-2 border-b border-slate-100 flex items-center justify-between text-xs text-slate-400 font-semibold px-3">
-                <span>Gợi ý địa điểm phổ biến</span>
+                <span className="flex items-center gap-1.5">
+                  <Compass className="w-3.5 h-3.5 text-blue-600" />
+                  Gợi ý địa điểm & Trường ĐH (Toàn quốc)
+                </span>
                 <button
                   type="button"
                   onClick={() => setShowLocationSuggestions(false)}
@@ -392,7 +508,7 @@ export const MapViewPage: React.FC = () => {
                   Đóng
                 </button>
               </div>
-              {filteredSuggestions.map((loc, idx) => (
+              {combinedSuggestions.map((loc, idx) => (
                 <button
                   key={idx}
                   type="button"
@@ -400,7 +516,15 @@ export const MapViewPage: React.FC = () => {
                   className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center gap-3 border-b border-slate-50 last:border-none transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                    {loc.type === 'university' ? <School className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+                    {loc.type === 'university' ? (
+                      <School className="w-4 h-4" />
+                    ) : loc.type === 'city' ? (
+                      <Compass className="w-4 h-4" />
+                    ) : loc.type === 'district' ? (
+                      <Building2 className="w-4 h-4" />
+                    ) : (
+                      <MapPin className="w-4 h-4" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-slate-800 truncate">{loc.name}</p>
@@ -409,6 +533,45 @@ export const MapViewPage: React.FC = () => {
                   <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Notification Banner when navigated to an area */}
+          {searchNotice && (
+            <div className="mt-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-blue-200 p-3.5 flex items-start justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-start gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-800">
+                    Đã chuyển bản đồ đến: <span className="text-blue-600">{searchNotice.locationName}</span>
+                  </p>
+                  <p className="text-slate-600 mt-0.5">{searchNotice.message}</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchNotice(null);
+                        setMarkers(allOriginalMarkers);
+                        renderMarkers(allOriginalMarkers);
+                        fitToMarkers(allOriginalMarkers);
+                        if (searchPinLayerRef.current) searchPinLayerRef.current.clearLayers();
+                      }}
+                      className="text-blue-600 hover:text-blue-700 font-semibold underline text-[11px]"
+                    >
+                      ← Xem tất cả phòng trọ (Hà Nội)
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSearchNotice(null)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           )}
         </div>

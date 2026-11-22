@@ -22,12 +22,15 @@ public class GeminiAiClient implements AiClient {
     @Value("${trofinder.ai.gemini.api-key:}")
     private String apiKey;
 
-    @Value("${trofinder.ai.gemini.model:gemini-2.5-flash-lite}")
+    @Value("${trofinder.ai.gemini.model:gemini-3.5-flash-lite}")
     private String primaryModel;
 
     public GeminiAiClient(LocalRuleBasedAiClient fallbackClient) {
         this.fallbackClient = fallbackClient;
-        this.restClient = RestClient.builder().build();
+        org.springframework.http.client.SimpleClientHttpRequestFactory requestFactory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(java.time.Duration.ofSeconds(3));
+        requestFactory.setReadTimeout(java.time.Duration.ofSeconds(7));
+        this.restClient = RestClient.builder().requestFactory(requestFactory).build();
     }
 
     @Override
@@ -37,9 +40,9 @@ public class GeminiAiClient implements AiClient {
         }
 
         List<String> candidateModels = List.of(
-                primaryModel != null && !primaryModel.isBlank() ? primaryModel : "gemini-2.5-flash-lite",
-                "gemini-3.8-flash",
-                "gemini-flash-latest"
+                primaryModel != null && !primaryModel.isBlank() ? primaryModel : "gemini-3.5-flash-lite",
+                "gemini-flash-lite-latest",
+                "gemini-3.8-flash"
         );
 
         for (String model : candidateModels) {
