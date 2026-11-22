@@ -20,6 +20,7 @@ import com.trofinder.dto.request.RoomCreateRequest;
 import com.trofinder.dto.request.RoomSearchRequest;
 import com.trofinder.dto.response.ApiResponse;
 import com.trofinder.dto.response.RoomResponse;
+import com.trofinder.dto.response.RoomSummaryResponse;
 import com.trofinder.service.interfaces.RoomService;
 
 import jakarta.validation.Valid;
@@ -49,6 +50,7 @@ public class RoomController {
                         .data(response)
                         .build());
     }
+
     /**
      * Lấy chi tiết phòng theo ID
      */
@@ -65,6 +67,7 @@ public class RoomController {
                         .data(response)
                         .build());
     }
+
     /**
      * Lấy danh sách phòng
      */
@@ -81,16 +84,16 @@ public class RoomController {
                         .data(response)
                         .build());
     }
-        /**
-         * Tìm kiếm phòng
-         */
-        @GetMapping("/search")
-        public ResponseEntity<ApiResponse<Page<RoomResponse>>> search(
-                @ModelAttribute RoomSearchRequest request,
-                Pageable pageable) {
 
-        Page<RoomResponse> response =
-                roomService.search(request, pageable);
+    /**
+     * Tìm kiếm phòng (Chi tiết)
+     */
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<Page<RoomResponse>>> search(
+            @ModelAttribute RoomSearchRequest request,
+            @PageableDefault(size = 10) Pageable pageable) {
+
+        Page<RoomResponse> response = roomService.search(request, pageable);
 
         return ResponseEntity.ok(
                 ApiResponse.<Page<RoomResponse>>builder()
@@ -98,7 +101,26 @@ public class RoomController {
                         .message("Tìm kiếm phòng thành công")
                         .data(response)
                         .build());
-        }
+    }
+
+    /**
+     * Tìm kiếm phòng dạng danh sách tóm tắt (Card view)
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<ApiResponse<Page<RoomSummaryResponse>>> searchSummary(
+            @ModelAttribute RoomSearchRequest request,
+            @PageableDefault(size = 12) Pageable pageable) {
+
+        Page<RoomSummaryResponse> response = roomService.searchSummary(request, pageable);
+
+        return ResponseEntity.ok(
+                ApiResponse.<Page<RoomSummaryResponse>>builder()
+                        .success(true)
+                        .message("Lấy danh sách phòng rút gọn thành công")
+                        .data(response)
+                        .build());
+    }
+
     /**
      * Cập nhật phòng
      */
@@ -116,6 +138,7 @@ public class RoomController {
                         .data(response)
                         .build());
     }
+
     /**
      * Xóa mềm phòng
      */
@@ -131,5 +154,4 @@ public class RoomController {
                         .message("Xóa phòng thành công")
                         .build());
     }
-        
 }

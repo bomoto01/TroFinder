@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # ==========================================================
+  # MySQL Database Service
+  # ==========================================================
+  mysql:
+    image: mysql:8.0
+    container_name: trofinder-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: trofinder
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password_change_me}
+      MYSQL_USER: ${DB_USER:-trofinder_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-trofinder_pass}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/trofinder.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./database/migrations/v1_schema_alignment.sql:/docker-entrypoint-initdb.d/02_v1_schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================
+  # Spring Boot Backend Service
+  # ==========================================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: trofinder-backend
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/trofinder?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-trofinder_user}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-trofinder_pass}
+      JWT_SECRET: ${JWT_SECRET:-9a7b8c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b}
+      JWT_EXPIRATION: 86400000
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./uploads:/app/uploads
+
+  # ==========================================================
+  # React Frontend Service (Nginx)
+  # ==========================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: trofinder-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  mysql_data:
+    driver: local

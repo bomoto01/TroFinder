@@ -39,7 +39,9 @@ import lombok.Setter;
  * setDescription()
  */
 @Setter
-
+@lombok.Builder
+@lombok.NoArgsConstructor
+@lombok.AllArgsConstructor
 public class Role {
 
     /*

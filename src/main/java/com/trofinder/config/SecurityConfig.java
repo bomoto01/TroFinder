@@ -5,12 +5,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trofinder.dto.response.ApiResponse;
@@ -20,27 +21,36 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
+@EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final AuthenticationProvider authenticationProvider;
+    private final CorsConfigurationSource corsConfigurationSource;
     private final ObjectMapper objectMapper;
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http)
+            throws Exception {
 
         http
-                .cors(Customizer.withDefaults())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public Authentication & Assets
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/uploads/**", "/images/**").permitAll()
-                        .requestMatchers("/ws/**").permitAll()
+                        // Public Auth Endpoints
+                        .requestMatchers(
+                                "/api/auth/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+
+                        // Static Uploads & Media
+                        .requestMatchers("/uploads/**").permitAll()
 
                         // Public Geolocation & Administrative Addresses
                         .requestMatchers(
@@ -48,11 +58,21 @@ public class SecurityConfig {
                                 "/api/districts/**"
                         ).permitAll()
 
+                        // WebSocket Handshake
+                        .requestMatchers("/ws/**").permitAll()
+
                         // Public Room Discovery & View (GET only)
                         .requestMatchers(HttpMethod.GET, "/api/rooms/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/map/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/amenities/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/reviews/room/**").permitAll()
+
+                        // AI Endpoints (Search, recommendations, and assistant)
+                        .requestMatchers("/api/ai/**").permitAll()
+
+                        // Role-based Dashboards
+                        .requestMatchers("/api/dashboard/admin").hasRole("ADMIN")
+                        .requestMatchers("/api/dashboard/owner").hasAnyRole("LANDLORD", "ADMIN")
 
                         // Admin Only Endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -65,7 +85,7 @@ public class SecurityConfig {
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                             response.setCharacterEncoding("UTF-8");
                             ApiResponse<Object> apiResponse = ApiResponse.builder()
-                                    .success(false)
+                                     .success(false)
                                     .message("Yêu cầu xác thực tài khoản để truy cập tài nguyên này.")
                                     .build();
                             response.getWriter().write(objectMapper.writeValueAsString(apiResponse));

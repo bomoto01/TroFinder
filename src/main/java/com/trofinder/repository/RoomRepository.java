@@ -8,6 +8,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.trofinder.entity.Room;
 import com.trofinder.enums.ApprovalStatus;
@@ -38,6 +40,8 @@ public interface RoomRepository
      * Danh sách phòng của chủ trọ.
      */
     List<Room> findByOwnerIdAndDeletedFalse(Long ownerId);
+
+    Page<Room> findByOwnerIdAndDeletedFalse(Long ownerId, Pageable pageable);
 
     /*
      * ==========================================================
@@ -86,4 +90,33 @@ public interface RoomRepository
             BigDecimal max,
             Pageable pageable);
 
+    /*
+     * ==========================================================
+     * MAP & GEOLOCATION
+     * ==========================================================
+     */
+
+    @Query("SELECT r FROM Room r WHERE r.deleted = false AND r.approvalStatus = com.trofinder.enums.ApprovalStatus.APPROVED AND r.status = com.trofinder.enums.RoomStatus.AVAILABLE AND r.latitude BETWEEN :minLat AND :maxLat AND r.longitude BETWEEN :minLng AND :maxLng")
+    List<Room> findInBoundingBox(
+            @Param("minLat") BigDecimal minLat,
+            @Param("maxLat") BigDecimal maxLat,
+            @Param("minLng") BigDecimal minLng,
+            @Param("maxLng") BigDecimal maxLng);
+
+    @Query("SELECT r FROM Room r WHERE r.deleted = false AND r.approvalStatus = com.trofinder.enums.ApprovalStatus.APPROVED AND r.status = com.trofinder.enums.RoomStatus.AVAILABLE AND r.latitude IS NOT NULL AND r.longitude IS NOT NULL")
+    List<Room> findAllAvailableWithLocation();
+
+    /*
+     * ==========================================================
+     * THỐNG KÊ (DASHBOARD)
+     * ==========================================================
+     */
+
+    long countByDeletedFalse();
+
+    long countByApprovalStatusAndDeletedFalse(ApprovalStatus approvalStatus);
+
+    long countByOwnerIdAndDeletedFalse(Long ownerId);
+
+    long countByOwnerIdAndStatusAndDeletedFalse(Long ownerId, RoomStatus status);
 }

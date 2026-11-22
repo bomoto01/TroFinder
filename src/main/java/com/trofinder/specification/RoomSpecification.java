@@ -1,11 +1,13 @@
 package com.trofinder.specification;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import org.springframework.data.jpa.domain.Specification;
 
 import com.trofinder.entity.Room;
 import com.trofinder.enums.ApprovalStatus;
+import com.trofinder.enums.RoomStatus;
 import com.trofinder.enums.RoomType;
 
 public class RoomSpecification {
@@ -17,7 +19,6 @@ public class RoomSpecification {
      * Chưa bị xóa
      */
     public static Specification<Room> notDeleted() {
-
         return (root, query, cb) ->
                 cb.isFalse(root.get("deleted"));
     }
@@ -26,7 +27,6 @@ public class RoomSpecification {
      * Đã được duyệt
      */
     public static Specification<Room> approved() {
-
         return (root, query, cb) ->
                 cb.equal(
                         root.get("approvalStatus"),
@@ -34,16 +34,62 @@ public class RoomSpecification {
     }
 
     /**
+     * Trạng thái phòng (AVAILABLE, RENTED, etc.)
+     */
+    public static Specification<Room> hasStatus(RoomStatus status) {
+        return (root, query, cb) -> {
+            if (status == null) {
+                return cb.conjunction();
+            }
+            return cb.equal(root.get("status"), status);
+        };
+    }
+
+    /**
+     * Phòng đã xác minh
+     */
+    public static Specification<Room> isVerified(Boolean verified) {
+        return (root, query, cb) -> {
+            if (verified == null) {
+                return cb.conjunction();
+            }
+            return cb.equal(root.get("verified"), verified);
+        };
+    }
+
+    /**
+     * Phòng nổi bật
+     */
+    public static Specification<Room> isFeatured(Boolean featured) {
+        return (root, query, cb) -> {
+            if (featured == null) {
+                return cb.conjunction();
+            }
+            return cb.equal(root.get("featured"), featured);
+        };
+    }
+
+    /**
+     * Lọc theo danh sách tiện ích
+     */
+    public static Specification<Room> hasAmenities(List<Long> amenityIds) {
+        return (root, query, cb) -> {
+            if (amenityIds == null || amenityIds.isEmpty()) {
+                return cb.conjunction();
+            }
+            query.distinct(true);
+            return root.join("amenities").get("id").in(amenityIds);
+        };
+    }
+
+    /**
      * Theo tỉnh
      */
     public static Specification<Room> hasProvince(Long provinceId) {
-
         return (root, query, cb) -> {
-
             if (provinceId == null) {
                 return cb.conjunction();
             }
-
             return cb.equal(
                     root.join("ward")
                             .join("district")
@@ -57,13 +103,10 @@ public class RoomSpecification {
      * Theo quận/huyện
      */
     public static Specification<Room> hasDistrict(Long districtId) {
-
         return (root, query, cb) -> {
-
             if (districtId == null) {
                 return cb.conjunction();
             }
-
             return cb.equal(
                     root.join("ward")
                             .join("district")
@@ -76,13 +119,10 @@ public class RoomSpecification {
      * Theo phường/xã
      */
     public static Specification<Room> hasWard(Long wardId) {
-
         return (root, query, cb) -> {
-
             if (wardId == null) {
                 return cb.conjunction();
             }
-
             return cb.equal(
                     root.join("ward")
                             .get("id"),
@@ -94,13 +134,10 @@ public class RoomSpecification {
      * Giá tối thiểu
      */
     public static Specification<Room> minPrice(BigDecimal minPrice) {
-
         return (root, query, cb) -> {
-
             if (minPrice == null) {
                 return cb.conjunction();
             }
-
             return cb.greaterThanOrEqualTo(
                     root.get("price"),
                     minPrice);
@@ -111,13 +148,10 @@ public class RoomSpecification {
      * Giá tối đa
      */
     public static Specification<Room> maxPrice(BigDecimal maxPrice) {
-
         return (root, query, cb) -> {
-
             if (maxPrice == null) {
                 return cb.conjunction();
             }
-
             return cb.lessThanOrEqualTo(
                     root.get("price"),
                     maxPrice);
@@ -128,13 +162,10 @@ public class RoomSpecification {
      * Diện tích tối thiểu
      */
     public static Specification<Room> minArea(BigDecimal minArea) {
-
         return (root, query, cb) -> {
-
             if (minArea == null) {
                 return cb.conjunction();
             }
-
             return cb.greaterThanOrEqualTo(
                     root.get("area"),
                     minArea);
@@ -145,13 +176,10 @@ public class RoomSpecification {
      * Diện tích tối đa
      */
     public static Specification<Room> maxArea(BigDecimal maxArea) {
-
         return (root, query, cb) -> {
-
             if (maxArea == null) {
                 return cb.conjunction();
             }
-
             return cb.lessThanOrEqualTo(
                     root.get("area"),
                     maxArea);
@@ -162,13 +190,10 @@ public class RoomSpecification {
      * Loại phòng
      */
     public static Specification<Room> hasRoomType(RoomType roomType) {
-
         return (root, query, cb) -> {
-
             if (roomType == null) {
                 return cb.conjunction();
             }
-
             return cb.equal(
                     root.get("roomType"),
                     roomType);
@@ -179,9 +204,7 @@ public class RoomSpecification {
      * Từ khóa
      */
     public static Specification<Room> keyword(String keyword) {
-
         return (root, query, cb) -> {
-
             if (keyword == null || keyword.isBlank()) {
                 return cb.conjunction();
             }
@@ -189,22 +212,10 @@ public class RoomSpecification {
             String value = "%" + keyword.trim().toLowerCase() + "%";
 
             return cb.or(
-
-                    cb.like(
-                            cb.lower(root.get("title")),
-                            value),
-
-                    cb.like(
-                            cb.lower(root.get("description")),
-                            value),
-
-                    cb.like(
-                            cb.lower(root.get("address")),
-                            value)
-
+                    cb.like(cb.lower(root.get("title")), value),
+                    cb.like(cb.lower(root.get("description")), value),
+                    cb.like(cb.lower(root.get("address")), value)
             );
-
         };
     }
-
 }

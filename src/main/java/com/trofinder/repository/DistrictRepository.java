@@ -16,6 +16,8 @@ public interface DistrictRepository extends JpaRepository<District, Long> {
      */
     Optional<District> findByName(String name);
 
+    List<District> findByNameContainingIgnoreCase(String name);
+
     /*
      * Tìm theo mã.
      */

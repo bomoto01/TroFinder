@@ -22,6 +22,8 @@ public interface FavoriteRepository extends JpaRepository<Favorite, FavoriteId> 
      */
     List<Favorite> findByUserOrderByCreatedAtDesc(User user);
 
+    List<Favorite> findByUserId(Long userId);
+
     /**
      * Tìm Favorite theo User và Room.
      */
