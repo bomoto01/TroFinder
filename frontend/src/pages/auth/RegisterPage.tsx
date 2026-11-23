@@ -10,6 +10,7 @@ export const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<'TENANT' | 'LANDLORD'>('TENANT');
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +18,17 @@ export const RegisterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+
+    if (password.length < 8) {
+      setErrorMsg('Mật khẩu phải từ 8 ký tự trở lên.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMsg('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       await authService.register({
@@ -25,7 +37,8 @@ export const RegisterPage: React.FC = () => {
         email,
         phone,
         password,
-        roleName: role,
+        confirmPassword,
+        role,
       });
       alert('Đăng ký tài khoản thành công! Vui lòng đăng nhập.');
       navigate('/login');
@@ -55,29 +68,34 @@ export const RegisterPage: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 pb-1">
-            <button
-              type="button"
-              onClick={() => setRole('TENANT')}
-              className={`py-2.5 rounded-xl text-xs font-semibold border text-center transition-all ${
-                role === 'TENANT'
-                  ? 'border-blue-600 bg-blue-50 text-blue-700'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              Người tìm phòng
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole('LANDLORD')}
-              className={`py-2.5 rounded-xl text-xs font-semibold border text-center transition-all ${
-                role === 'LANDLORD'
-                  ? 'border-blue-600 bg-blue-50 text-blue-700'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              Chủ trọ / Cho thuê
-            </button>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+              Bạn tham gia với vai trò:
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setRole('TENANT')}
+                className={`py-2.5 px-3 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all ${
+                  role === 'TENANT'
+                    ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-600'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                🏠 Người tìm phòng
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole('LANDLORD')}
+                className={`py-2.5 px-3 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all ${
+                  role === 'LANDLORD'
+                    ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-600'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                🏢 Chủ trọ / Cho thuê
+              </button>
+            </div>
           </div>
 
           <div>
@@ -138,14 +156,31 @@ export const RegisterPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">Mật khẩu</label>
+            <label className="text-xs font-semibold text-slate-700 block mb-1">Mật khẩu (tối thiểu 8 ký tự)</label>
             <div className="relative">
               <input
                 type="password"
                 required
+                minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Tối thiểu 6 ký tự"
+                placeholder="Nhập mật khẩu (ít nhất 8 ký tự)..."
+                className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-700 block mb-1">Xác nhận mật khẩu</label>
+            <div className="relative">
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Nhập lại mật khẩu vừa đặt..."
                 className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
