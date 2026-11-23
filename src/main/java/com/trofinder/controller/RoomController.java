@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.trofinder.dto.request.RoomCreateRequest;
@@ -152,6 +153,36 @@ public class RoomController {
                 ApiResponse.<Void>builder()
                         .success(true)
                         .message("Xóa phòng thành công")
+                        .build());
+    }
+
+    /**
+     * Lấy danh sách phòng của chủ trọ hiện tại (kèm số lượt xem, yêu thích, lịch hẹn)
+     */
+    @GetMapping("/my-rooms")
+    public ResponseEntity<ApiResponse<java.util.List<RoomSummaryResponse>>> getMyRooms() {
+        java.util.List<RoomSummaryResponse> response = roomService.getMyRooms();
+        return ResponseEntity.ok(
+                ApiResponse.<java.util.List<RoomSummaryResponse>>builder()
+                        .success(true)
+                        .message("Lấy danh sách phòng của tôi thành công")
+                        .data(response)
+                        .build());
+    }
+
+    /**
+     * Cập nhật nhanh trạng thái phòng (AVAILABLE / FULL / HIDDEN)
+     */
+    @PutMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<RoomResponse>> updateStatus(
+            @PathVariable Long id,
+            @RequestParam com.trofinder.enums.RoomStatus status) {
+        RoomResponse response = roomService.updateStatus(id, status);
+        return ResponseEntity.ok(
+                ApiResponse.<RoomResponse>builder()
+                        .success(true)
+                        .message("Cập nhật trạng thái phòng thành công")
+                        .data(response)
                         .build());
     }
 }

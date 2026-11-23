@@ -22,17 +22,20 @@ import com.trofinder.dto.response.MapMarkerResponse;
 import com.trofinder.dto.response.RoomResponse;
 import com.trofinder.dto.response.RoomSummaryResponse;
 import com.trofinder.entity.Amenity;
+import com.trofinder.entity.Appointment;
 import com.trofinder.entity.Room;
 import com.trofinder.entity.RoomImage;
 import com.trofinder.entity.RoomVideo;
 import com.trofinder.entity.User;
 import com.trofinder.entity.Ward;
+import com.trofinder.enums.AppointmentStatus;
 import com.trofinder.enums.ApprovalStatus;
 import com.trofinder.enums.RoomStatus;
 import com.trofinder.exception.BadRequestException;
 import com.trofinder.exception.ResourceNotFoundException;
 import com.trofinder.mapper.RoomMapper;
 import com.trofinder.repository.AmenityRepository;
+import com.trofinder.repository.AppointmentRepository;
 import com.trofinder.repository.RoomImageRepository;
 import com.trofinder.repository.RoomRepository;
 import com.trofinder.repository.RoomVideoRepository;
@@ -41,6 +44,9 @@ import com.trofinder.service.interfaces.CurrentUserService;
 import com.trofinder.service.interfaces.RoomService;
 import com.trofinder.specification.RoomSpecification;
 import com.trofinder.storage.FileStorageService;
+
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
 
@@ -56,6 +62,7 @@ public class RoomServiceImpl implements RoomService {
     private final AmenityRepository amenityRepository;
     private final CurrentUserService currentUserService;
     private final RoomVideoRepository roomVideoRepository;
+    private final AppointmentRepository appointmentRepository;
 
     // ==========================================================
     // CREATE
@@ -467,5 +474,39 @@ public class RoomServiceImpl implements RoomService {
     private RoomResponse saveRoom(Room room) {
         Room saved = roomRepository.save(room);
         return roomMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RoomSummaryResponse> getMyRooms() {
+        User currentUser = getCurrentUser();
+        List<Room> rooms = roomRepository.findByOwnerIdAndDeletedFalse(currentUser.getId());
+        List<Appointment> appointments = appointmentRepository.findByOwnerAndDeletedFalseOrderByCreatedAtDesc(currentUser);
+
+        Map<Long, Long> appointmentCountMap = appointments.stream()
+                .filter(a -> a.getRoom() != null)
+                .collect(Collectors.groupingBy(a -> a.getRoom().getId(), Collectors.counting()));
+
+        Map<Long, Long> pendingCountMap = appointments.stream()
+                .filter(a -> a.getRoom() != null && a.getStatus() == AppointmentStatus.PENDING)
+                .collect(Collectors.groupingBy(a -> a.getRoom().getId(), Collectors.counting()));
+
+        return rooms.stream()
+                .map(room -> {
+                    RoomSummaryResponse res = roomMapper.toSummaryResponse(room);
+                    res.setAppointmentCount(appointmentCountMap.getOrDefault(room.getId(), 0L));
+                    res.setPendingAppointmentCount(pendingCountMap.getOrDefault(room.getId(), 0L));
+                    return res;
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public RoomResponse updateStatus(Long id, RoomStatus status) {
+        Room room = getRoom(id);
+        validateOwner(room);
+        room.setStatus(status);
+        return saveRoom(room);
     }
 }

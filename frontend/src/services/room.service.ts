@@ -59,6 +59,18 @@ export const roomService = {
     return res.data;
   },
 
+  getMyRooms: async () => {
+    const res = await api.get<ApiResponse<RoomSummary[]>>('/api/rooms/my-rooms');
+    return res.data.data;
+  },
+
+  updateRoomStatus: async (id: number, status: string) => {
+    const res = await api.put<ApiResponse<RoomDetail>>(`/api/rooms/${id}/status`, null, {
+      params: { status },
+    });
+    return res.data.data;
+  },
+
   uploadImages: async (roomId: number, files: File[]) => {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));

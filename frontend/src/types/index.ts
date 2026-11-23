@@ -39,6 +39,8 @@ export interface RoomSummary {
   featured: boolean;
   viewCount: number;
   favoriteCount: number;
+  appointmentCount?: number;
+  pendingAppointmentCount?: number;
   averageRating?: number;
   reviewCount?: number;
   status: RoomStatus;

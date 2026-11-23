@@ -79,6 +79,16 @@ public interface RoomService {
             List<MultipartFile> files);
 
     /**
+     * Lấy danh sách phòng của chủ trọ hiện tại kèm số lịch hẹn
+     */
+    List<RoomSummaryResponse> getMyRooms();
+
+    /**
+     * Cập nhật trạng thái phòng (AVAILABLE / FULL / HIDDEN)
+     */
+    RoomResponse updateStatus(Long id, com.trofinder.enums.RoomStatus status);
+
+    /**
      * Xóa ảnh
      */
     void deleteImage(Long imageId);

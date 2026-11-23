@@ -48,6 +48,9 @@ public class RoomSummaryResponse {
     private RoomStatus status;
     private ApprovalStatus approvalStatus;
 
+    private Long appointmentCount;
+    private Long pendingAppointmentCount;
+
     private Long ownerId;
     private String ownerName;
     private String ownerAvatar;
