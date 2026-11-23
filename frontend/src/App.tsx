@@ -23,8 +23,12 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requiredRole?: strin
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  if (requiredRole && !user.role?.name?.includes(requiredRole)) {
-    return <Navigate to="/" replace />;
+  if (requiredRole) {
+    const rawRole = typeof user.role === 'string' ? user.role : (user.role as any)?.name || '';
+    const userRole = rawRole.replace(/^ROLE_/, '').toUpperCase();
+    if (userRole !== requiredRole.toUpperCase() && !userRole.includes(requiredRole.toUpperCase())) {
+      return <Navigate to="/" replace />;
+    }
   }
   return <>{children}</>;
 };

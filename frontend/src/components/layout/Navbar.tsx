@@ -1,12 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../../services/auth.service';
+import { User } from '../../types';
 import { Home, MapPin, MessageSquare, Calendar, User as UserIcon, LogOut, PlusCircle, ShieldAlert, Sparkles } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const currentUser = authService.getCurrentUser();
-  const role = currentUser?.role?.name?.replace('ROLE_', '');
+  const [currentUser, setCurrentUser] = useState<User | null>(() => authService.getCurrentUser());
+
+  useEffect(() => {
+    const handleAuthChange = () => {
+      setCurrentUser(authService.getCurrentUser());
+    };
+    window.addEventListener('auth-change', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+    return () => {
+      window.removeEventListener('auth-change', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+    };
+  }, []);
+
+  const rawRole = typeof currentUser?.role === 'string' ? currentUser.role : currentUser?.role?.name || '';
+  const role = rawRole.replace(/^ROLE_/, '').toUpperCase();
 
   const handleLogout = () => {
     authService.logout();

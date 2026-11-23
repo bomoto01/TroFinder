@@ -5,11 +5,13 @@ export interface User {
   email: string;
   phone?: string;
   avatar?: string;
-  role: {
-    id: number;
-    name: string;
-    description?: string;
-  };
+  role:
+    | {
+        id?: number;
+        name: string;
+        description?: string;
+      }
+    | string;
 }
 
 export type RoomType = 'BOARDING_HOUSE' | 'APARTMENT' | 'MINI_APARTMENT' | 'WHOLE_HOUSE' | 'HOMESTAY';

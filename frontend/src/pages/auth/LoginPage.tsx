@@ -15,8 +15,18 @@ export const LoginPage: React.FC = () => {
     setErrorMsg('');
     setIsLoading(true);
     try {
-      await authService.login({ login, password });
-      navigate('/');
+      const result = await authService.login({ login, password });
+      const user = result?.user;
+      const rawRole = typeof user?.role === 'string' ? user.role : user?.role?.name || '';
+      const role = rawRole.replace(/^ROLE_/, '').toUpperCase();
+
+      if (role === 'LANDLORD') {
+        navigate('/landlord/dashboard');
+      } else if (role === 'ADMIN') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       setErrorMsg(err.response?.data?.message || 'Tài khoản hoặc mật khẩu không chính xác.');
     } finally {

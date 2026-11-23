@@ -3,12 +3,15 @@ import { ApiResponse, User } from '../types';
 
 export const authService = {
   login: async (loginData: any) => {
-    const res = await api.post<ApiResponse<{ token: string; user: User }>>('/api/auth/login', loginData);
-    if (res.data.data?.token) {
-      localStorage.setItem('access_token', res.data.data.token);
-      localStorage.setItem('user_info', JSON.stringify(res.data.data.user));
+    const res = await api.post<ApiResponse<any>>('/api/auth/login', loginData);
+    const data = res.data.data;
+    const token = data?.accessToken || data?.token;
+    if (token) {
+      localStorage.setItem('access_token', token);
+      localStorage.setItem('user_info', JSON.stringify(data.user));
+      window.dispatchEvent(new Event('auth-change'));
     }
-    return res.data.data;
+    return data;
   },
 
   register: async (registerData: any) => {
@@ -26,8 +29,16 @@ export const authService = {
     }
   },
 
+  getUserRole: (): string => {
+    const user = authService.getCurrentUser();
+    if (!user || !user.role) return '';
+    const rawRole = typeof user.role === 'string' ? user.role : (user.role as any).name || '';
+    return rawRole.replace(/^ROLE_/, '').toUpperCase();
+  },
+
   logout: () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('user_info');
+    window.dispatchEvent(new Event('auth-change'));
   },
 };
