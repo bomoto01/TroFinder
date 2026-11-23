@@ -40,21 +40,31 @@ export const RoomDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (!id) return;
+    let isMounted = true;
+
     const loadData = async () => {
       try {
         const [roomData, reviewData] = await Promise.all([
           roomService.getRoomById(Number(id)),
           reviewService.getReviewsByRoom(Number(id), 0, 10),
         ]);
-        setRoom(roomData);
-        setReviews(reviewData?.content || []);
+        if (isMounted) {
+          setRoom(roomData);
+          setReviews(reviewData?.content || []);
+        }
       } catch (err) {
         console.error('Failed to load room details:', err);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   const handleStartChat = async () => {

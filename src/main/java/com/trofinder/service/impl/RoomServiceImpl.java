@@ -84,11 +84,9 @@ public class RoomServiceImpl implements RoomService {
     // ==========================================================
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public RoomResponse getById(Long id) {
         Room room = getRoom(id);
-        room.setViewCount(room.getViewCount() + 1);
-        roomRepository.save(room);
         return roomMapper.toResponse(room);
     }
 

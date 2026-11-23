@@ -22,8 +22,11 @@ import com.trofinder.dto.request.RoomSearchRequest;
 import com.trofinder.dto.response.ApiResponse;
 import com.trofinder.dto.response.RoomResponse;
 import com.trofinder.dto.response.RoomSummaryResponse;
+import com.trofinder.repository.UserRepository;
 import com.trofinder.service.interfaces.RoomService;
+import com.trofinder.service.interfaces.RoomViewService;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -34,6 +37,8 @@ import lombok.RequiredArgsConstructor;
 public class RoomController {
 
     private final RoomService roomService;
+    private final RoomViewService roomViewService;
+    private final UserRepository userRepository;
 
     /**
      * Đăng phòng
@@ -57,7 +62,16 @@ public class RoomController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<RoomResponse>> getById(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            HttpServletRequest request) {
+
+        String ip = getClientIp(request);
+        Long userId = getCurrentUserIdSafe();
+
+        try {
+            roomViewService.recordView(id, ip, userId);
+        } catch (Exception ignored) {
+        }
 
         RoomResponse response = roomService.getById(id);
 
@@ -67,6 +81,26 @@ public class RoomController {
                         .message("Lấy thông tin phòng thành công")
                         .data(response)
                         .build());
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        if (request == null) return "unknown";
+        String xf = request.getHeader("X-Forwarded-For");
+        if (xf != null && !xf.isBlank()) {
+            return xf.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    private Long getCurrentUserIdSafe() {
+        try {
+            org.springframework.security.core.Authentication auth =
+                    org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && !(auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken)) {
+                return userRepository.findByUsername(auth.getName()).map(com.trofinder.entity.User::getId).orElse(null);
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     /**
